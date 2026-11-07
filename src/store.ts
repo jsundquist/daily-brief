@@ -22,6 +22,22 @@ function itemKey(item: Item): string {
   return `${item.source}\n${item.link}`;
 }
 
+/** Read the store file. If it is unreadable, keep a copy of it and start empty so a restart never crash-loops. */
+function loadOrQuarantine(file: string): StoreData {
+  try {
+    const data = JSON.parse(readFileSync(file, "utf8"));
+    if (typeof data !== "object" || data === null || Array.isArray(data) || typeof data.items !== "object" || data.items === null) {
+      throw new Error("store file has an unexpected shape");
+    }
+    return data;
+  } catch (error) {
+    const aside = `${file}.corrupt-${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    renameSync(file, aside);
+    console.error(`Store file ${file} is corrupt (${error}); moved to ${aside}, starting empty.`);
+    return { items: {} };
+  }
+}
+
 /** JSON-file store. Items are keyed by source plus link; check-off is keyed by link alone. */
 export class Store {
   private data: StoreData;
@@ -29,7 +45,7 @@ export class Store {
 
   constructor(file: string) {
     this.file = file;
-    this.data = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { items: {} };
+    this.data = existsSync(file) ? loadOrQuarantine(file) : { items: {} };
     // Older stores keyed items by link alone; re-key them.
     this.data.items = Object.fromEntries(Object.values(this.data.items).map((item) => [itemKey(item), item]));
   }
