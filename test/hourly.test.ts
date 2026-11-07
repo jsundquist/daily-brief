@@ -100,7 +100,6 @@ test("a capped source is replaced by the newly fetched capped set, never exceedi
     );
     t.setClock(new Date(T0.getTime() + HOUR));
     await until(() => t.feed.state.hits === 2);
-    await until(() => true);
     await new Promise((resolve) => setTimeout(resolve, 60));
     const html = await t.page();
     assert.equal((html.match(/<li>/g) ?? []).length, 10);
