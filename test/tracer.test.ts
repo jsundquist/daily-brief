@@ -1,14 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { startServer } from "../src/server.ts";
-import { serveFixture } from "./helpers.ts";
+import { serveFixture, tempStore } from "./helpers.ts";
 
 test("page lists Hacker News items fetched from the feed, and they survive a restart", async () => {
   const feed = await serveFixture("test/fixtures/hn.xml");
-  const dataFile = join(mkdtempSync(join(tmpdir(), "brief-")), "store.json");
+  const dataFile = tempStore();
   const sources = [{ name: "Hacker News", type: "news" as const, url: feed.url }];
   const now = () => new Date("2026-11-07T12:00:00Z");
 

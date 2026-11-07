@@ -1,32 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
-import { readFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { startServer } from "../src/server.ts";
+import { serveFixture, tempStore } from "./helpers.ts";
 
 const T0 = new Date("2026-11-07T12:00:00Z");
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
-
-/** A fixture feed whose body the test can swap between fetches; counts requests. */
-async function serveSwappable(path: string) {
-  const state = { body: readFileSync(path), hits: 0 };
-  const server: Server = createServer((_req, res) => {
-    state.hits += 1;
-    res.writeHead(200, { "content-type": "application/rss+xml" });
-    res.end(state.body);
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as AddressInfo).port;
-  return {
-    state,
-    url: `http://127.0.0.1:${port}/feed.xml`,
-    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
-  };
-}
 
 async function until(condition: () => boolean): Promise<void> {
   for (let i = 0; i < 200; i += 1) {
@@ -39,11 +19,11 @@ async function until(condition: () => boolean): Promise<void> {
 }
 
 async function setup(cap?: number, fixture = "test/fixtures/hn.xml") {
-  const feed = await serveSwappable(fixture);
+  const feed = await serveFixture(fixture);
   let clock = T0;
   const server = await startServer({
     sources: [{ name: "Feed", type: "news" as const, url: feed.url, cap }],
-    dataFile: join(mkdtempSync(join(tmpdir(), "brief-")), "store.json"),
+    dataFile: tempStore(),
     port: 0,
     now: () => clock,
     tickMs: 5,

@@ -1,53 +1,25 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
-import { readFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { startServer } from "../src/server.ts";
-import { serveFixture } from "./helpers.ts";
+import { serveFixture, tempStore, type FixtureFeed } from "./helpers.ts";
 
-type Mode = "ok" | "404" | "junk" | "hang";
+type Mode = "404" | "junk" | "hang";
 
-/** A fixture feed whose behaviour the test can switch between fetches. */
-async function serveSwitchable(path: string) {
-  const body = readFileSync(path);
-  const state = { mode: "ok" as Mode };
-  const server: Server = createServer((_req, res) => {
-    if (state.mode === "hang") {
-      return;
-    }
-    if (state.mode === "404") {
-      res.writeHead(404);
-      res.end("nope");
-      return;
-    }
-    res.writeHead(200, { "content-type": "application/rss+xml" });
-    res.end(state.mode === "junk" ? "<html><body>not a feed <<<" : body);
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const port = (server.address() as AddressInfo).port;
-  return {
-    state,
-    url: `http://127.0.0.1:${port}/feed.xml`,
-    close: () =>
-      new Promise<void>((resolve) => {
-        server.closeAllConnections();
-        server.close(() => resolve());
-      }),
-  };
+function breakFeed(feed: FixtureFeed, mode: Mode): void {
+  if (mode === "404") {
+    feed.state.status = 404;
+  } else if (mode === "junk") {
+    feed.state.body = Buffer.from("<html><body>not a feed <<<");
+  } else {
+    feed.state.hang = true;
+  }
 }
 
 const T0 = new Date("2026-11-07T12:00:00Z");
 const T1 = new Date("2026-11-07T13:00:00Z");
 
-function tempStore(): string {
-  return join(mkdtempSync(join(tmpdir(), "brief-")), "store.json");
-}
-
 async function setup() {
-  const flaky = await serveSwitchable("test/fixtures/hn.xml");
+  const flaky = await serveFixture("test/fixtures/hn.xml");
   const good = await serveFixture("test/fixtures/letter.xml");
   let clock = T0;
   const server = await startServer({
@@ -92,7 +64,7 @@ for (const mode of ["404", "junk", "hang"] as const) {
     try {
       const before = await t.page();
       assert.match(sectionOf(before, "Flaky"), /Updated 2026-11-07 12:00 UTC/);
-      t.flaky.state.mode = mode;
+      breakFeed(t.flaky, mode);
       t.setClock(T1);
       await t.refresh();
       const html = await t.page();
@@ -112,7 +84,7 @@ for (const mode of ["404", "junk", "hang"] as const) {
 test("a source warns only after 3 consecutive failed refreshes; success clears it", async () => {
   const t = await setup();
   try {
-    t.flaky.state.mode = "404";
+    t.flaky.state.status = 404;
     await t.refresh();
     await t.refresh();
     assert.doesNotMatch(await t.page(), /class="warning"/);
@@ -120,7 +92,7 @@ test("a source warns only after 3 consecutive failed refreshes; success clears i
     const warned = await t.page();
     assert.match(sectionOf(warned, "Flaky"), /class="warning"[^>]*>[^<]*failing since 2026-11-07 12:00 UTC/);
     assert.doesNotMatch(sectionOf(warned, "Good"), /class="warning"/);
-    t.flaky.state.mode = "ok";
+    t.flaky.state.status = 200;
     await t.refresh();
     assert.doesNotMatch(await t.page(), /class="warning"/);
   } finally {

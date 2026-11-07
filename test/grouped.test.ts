@@ -1,16 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { startServer } from "../src/server.ts";
-import { serveFixture } from "./helpers.ts";
+import { serveFixture, tempStore } from "./helpers.ts";
 
 const NOW = new Date("2026-11-07T12:00:00Z");
-
-function tempStore(): string {
-  return join(mkdtempSync(join(tmpdir(), "brief-")), "store.json");
-}
 
 test("Atom feeds, including the YouTube channel feed, are parsed like RSS", async () => {
   const feed = await serveFixture("test/fixtures/youtube.xml");
@@ -43,7 +36,9 @@ test("a source with a cap shows only its top items; uncapped sources show everyt
     await many.close();
     await uncapped.close();
   });
-  const [newsletters, news] = html.split("<h2>News sites</h2>").length === 2 ? html.split("<h2>News sites</h2>") : ["", ""];
+  const parts = html.split("<h2>News sites</h2>");
+  assert.equal(parts.length, 2, "News sites heading must appear exactly once");
+  const [newsletters, news] = parts;
   assert.equal(news.match(/<li>/g)?.length, 10);
   assert.match(news, /Story 10/);
   assert.doesNotMatch(news, /Story 11/);
