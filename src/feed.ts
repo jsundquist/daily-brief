@@ -61,6 +61,9 @@ function parseAtom(feed: { entry?: unknown }, source: string): Item[] {
 /** Parse RSS 2.0 or Atom XML into normalised items. Throws on invalid input. */
 export function parseFeed(xml: string, source: string): Item[] {
   const doc = parser.parse(xml);
+  if (!doc?.feed && !doc?.rss) {
+    throw new Error(`Feed for ${source} is not RSS or Atom`);
+  }
   if (doc?.feed) {
     return parseAtom(doc.feed, source);
   }
@@ -82,8 +85,8 @@ export function parseFeed(xml: string, source: string): Item[] {
   return items;
 }
 
-export async function fetchFeed(url: string, source: string, cap?: number): Promise<Item[]> {
-  const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+export async function fetchFeed(url: string, source: string, cap?: number, timeoutMs = 15_000): Promise<Item[]> {
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!response.ok) {
     throw new Error(`Feed ${url} responded ${response.status}`);
   }

@@ -6,8 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] One failing feed leaves all other sources displaying normally
-- [ ] Each source shows a last-updated time
-- [ ] A source failing across refreshes shows a visible warning
-- [ ] The last good items for a failing source are still shown
-- [ ] A test covers a timeout and an invalid-XML feed
+- [x] One failing feed leaves all other sources displaying normally
+- [x] Each source shows a last-updated time
+- [x] A source failing across refreshes shows a visible warning
+- [x] The last good items for a failing source are still shown
+- [x] A test covers a timeout and an invalid-XML feed
+
+**Notes:** A source warns after 3 consecutive failed fetches (`WARN_AFTER_FAILURES` in `src/render.ts`); a single failure is normal. `POST /refresh` runs one fetch round of all sources (ticket 04 can schedule the same internal `refresh`). `fetchTimeoutMs` option sets the per-feed timeout (default 15s).
