@@ -4,6 +4,8 @@ import type { Item } from "./feed.ts";
 
 interface StoreData {
   items: Record<string, Item>;
+  /** Links of items struck through. */
+  checked?: Record<string, true>;
 }
 
 /** JSON-file store. Items are keyed by link. */
@@ -25,6 +27,20 @@ export class Store {
 
   listItems(): Item[] {
     return Object.values(this.data.items);
+  }
+
+  toggleChecked(link: string): void {
+    const checked = (this.data.checked ??= {});
+    if (checked[link]) {
+      delete checked[link];
+    } else {
+      checked[link] = true;
+    }
+    this.save();
+  }
+
+  checkedLinks(): Set<string> {
+    return new Set(Object.keys(this.data.checked ?? {}));
   }
 
   private save(): void {

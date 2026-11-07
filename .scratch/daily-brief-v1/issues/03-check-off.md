@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] Clicking an item toggles a strikethrough on its text
-- [ ] The state persists across page reload and server restart
-- [ ] A re-fetched item with the same link keeps its state
-- [ ] State for items that have aged out of the 3-day window may be discarded
-- [ ] A test covers toggling and persistence keyed by link
+- [x] Clicking an item toggles a strikethrough on its text
+- [x] The state persists across page reload and server restart
+- [x] A re-fetched item with the same link keeps its state
+- [x] State for items that have aged out of the 3-day window may be discarded
+- [x] A test covers toggling and persistence keyed by link

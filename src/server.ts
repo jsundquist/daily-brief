@@ -32,7 +32,25 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const server = createServer((req, res) => {
     if (req.method === "GET" && req.url === "/") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(renderPage(store.listItems(), options.sources, now()));
+      res.end(renderPage(store.listItems(), options.sources, now(), store.checkedLinks()));
+      return;
+    }
+    if (req.method === "POST" && req.url === "/toggle") {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        try {
+          const { link } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+          if (typeof link !== "string") {
+            throw new Error("link must be a string");
+          }
+          store.toggleChecked(link);
+          res.writeHead(204);
+        } catch {
+          res.writeHead(400);
+        }
+        res.end();
+      });
       return;
     }
     res.writeHead(404);
