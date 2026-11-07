@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] Starting the server and opening the page in a browser shows Hacker News items with title, link and description
-- [ ] Items are stored locally, so restarting the server keeps them
-- [ ] The data layer is separate from the page rendering (the page reads stored items through the server)
-- [ ] A test covers parsing a feed into stored items
+- [x] Starting the server and opening the page in a browser shows Hacker News items with title, link and description
+- [x] Items are stored locally, so restarting the server keeps them
+- [x] The data layer is separate from the page rendering (the page reads stored items through the server)
+- [x] A test covers parsing a feed into stored items

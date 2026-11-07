@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Hacker News</title><link>https://news.ycombinator.com/</link>
+<item><title>First &amp; Best Story</title><link>https://example.com/one</link><pubDate>Fri, 06 Nov 2026 10:00:00 +0000</pubDate><comments>https://news.ycombinator.com/item?id=1</comments><description>&lt;a href="https://news.ycombinator.com/item?id=1"&gt;Comments&lt;/a&gt;</description></item>
+<item><title>Second Story</title><link>https://example.com/two</link><pubDate>Fri, 06 Nov 2026 09:00:00 +0000</pubDate><comments>https://news.ycombinator.com/item?id=2</comments><description>&lt;a href="https://news.ycombinator.com/item?id=2"&gt;Comments&lt;/a&gt;</description></item>
+</channel></rss>
