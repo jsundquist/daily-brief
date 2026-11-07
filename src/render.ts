@@ -23,7 +23,7 @@ const TYPE_ORDER: { type: SourceType; heading: string }[] = [
   { type: "news", heading: "News sites" },
 ];
 
-function esc(value: string): string {
+function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -35,23 +35,37 @@ function stripTags(value: string): string {
   return value.replace(/<[^>]*>/g, "");
 }
 
-function renderItem(item: Item, checked: Set<string>): string {
-  const cls = checked.has(item.link) ? ' class="done"' : "";
-  return `<li><div${cls} data-link="${esc(item.link)}"><a href="${esc(item.link)}">${esc(item.title)}</a> <small>${esc(item.source)}</small><p>${esc(stripTags(item.description))}</p></div></li>`;
+/** Descriptions are shown at about this many characters; the store keeps the full text. */
+const MAX_DESCRIPTION_CHARS = 300;
+
+function truncateAtWord(value: string, limit: number): string {
+  if (value.length <= limit) {
+    return value;
+  }
+  const cut = value.slice(0, limit);
+  const lastSpace = cut.search(/\s\S*$/);
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
 }
 
-function stamp(iso: string): string {
+function isFailing(status: SourceStatus | undefined): boolean {
+  return status !== undefined && status.consecutiveFailures >= WARN_AFTER_FAILURES && status.failingSince !== null;
+}
+
+function renderItem(item: Item, checked: Set<string>): string {
+  const doneClass = checked.has(item.link) ? ' class="done"' : "";
+  return `<li><div${doneClass} data-link="${escapeHtml(item.link)}"><a href="${escapeHtml(item.link)}">${escapeHtml(item.title)}</a> <small>${escapeHtml(item.source)}</small><p>${escapeHtml(truncateAtWord(stripTags(item.description), MAX_DESCRIPTION_CHARS))}</p></div></li>`;
+}
+
+function formatUtc(iso: string): string {
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
 function renderStatus(status: SourceStatus | undefined): string {
-  if (status === undefined) {
-    return "";
-  }
-  const updated = status.lastSuccess === null ? "Never updated" : `Updated ${stamp(status.lastSuccess)}`;
+  const lastSuccess = status?.lastSuccess ?? null;
+  const updated = lastSuccess === null ? "Never updated" : `Updated ${formatUtc(lastSuccess)}`;
   const warning =
-    status.consecutiveFailures >= WARN_AFTER_FAILURES && status.failingSince !== null
-      ? ` <strong class="warning">Warning: failing since ${stamp(status.failingSince)} (${status.consecutiveFailures} failed fetches)</strong>`
+    status !== undefined && isFailing(status)
+      ? ` <strong class="warning">Warning: failing since ${formatUtc(status.failingSince as string)} (${status.consecutiveFailures} failed fetches)</strong>`
       : "";
   return `<p><small>${updated}</small>${warning}</p>\n`;
 }
@@ -71,19 +85,24 @@ function renderSource(name: string, items: Item[], status: SourceStatus | undefi
       return `<h4>${day}</h4><ul>\n${dayItems.map((item) => renderItem(item, checked)).join("\n")}\n</ul>`;
     })
     .join("\n");
-  return `<section><h3>${esc(name)}</h3>\n${renderStatus(status)}${body}\n</section>`;
+  return `<section><h3>${escapeHtml(name)}</h3>\n${renderStatus(status)}${body}\n</section>`;
 }
 
 /** Render stored items to an HTML page grouped by type, source, day. Pure. */
-export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus> = {}, checked: Set<string> = new Set()): string {
+export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
   const cutoff = new Date(now.getTime() - WINDOW_MS).toISOString();
   const recent = items.filter((item) => item.published !== null && item.published >= cutoff && isHttpUrl(item.link));
   const sections = TYPE_ORDER.map(({ type, heading }) => {
     const rendered = sources
       .filter((source) => source.type === type)
-      .map((source) => ({ source, items: recent.filter((item) => item.source === source.name) }))
-      .filter((entry) => entry.items.length > 0 || (statuses[entry.source.name]?.consecutiveFailures ?? 0) >= WARN_AFTER_FAILURES)
-      .map((entry) => renderSource(entry.source.name, entry.items, statuses[entry.source.name], checked));
+      .map((source) =>
+        renderSource(
+          source.name,
+          recent.filter((item) => item.source === source.name),
+          statuses[source.name],
+          checked,
+        ),
+      );
     return rendered.length === 0 ? "" : `<section><h2>${heading}</h2>\n${rendered.join("\n")}\n</section>`;
   }).filter((section) => section !== "");
   return `<!doctype html>

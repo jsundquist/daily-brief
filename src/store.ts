@@ -22,6 +22,10 @@ function itemKey(item: Item): string {
   return `${item.source}\n${item.link}`;
 }
 
+function emptyStatus(): SourceStatus {
+  return { lastSuccess: null, consecutiveFailures: 0, failingSince: null };
+}
+
 /** Read the store file. If it is unreadable, keep a copy of it and start empty so a restart never crash-loops. */
 function loadOrQuarantine(file: string): StoreData {
   try {
@@ -68,12 +72,12 @@ export class Store {
   }
 
   recordSuccess(source: string, at: string): void {
-    this.sourceMap()[source] = { lastSuccess: at, consecutiveFailures: 0, failingSince: null };
+    this.sourceMap()[source] = { ...emptyStatus(), lastSuccess: at };
     this.save();
   }
 
   recordFailure(source: string, at: string): void {
-    const previous = this.sourceMap()[source] ?? { lastSuccess: null, consecutiveFailures: 0, failingSince: null };
+    const previous = this.sourceMap()[source] ?? emptyStatus();
     this.sourceMap()[source] = {
       lastSuccess: previous.lastSuccess,
       consecutiveFailures: previous.consecutiveFailures + 1,
