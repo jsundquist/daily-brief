@@ -20,7 +20,7 @@ A small local server on my Mac serves one HTML page. Every hour it fetches a con
 4. As a reader, I want the newest day first, so that today's items are at the top of each source.
 5. As a reader, I want each item to show its title, source, link and the source's own description, so that I can decide whether to open it.
 6. As a reader, I want clicking an item's link to open the original item, so that I can read, watch or listen to it.
-7. As a reader, I want only the last 3 days shown, so that the page stays short.
+7. As a reader, I want each source to show every item from the last 3 days plus its latest 3 items regardless of age (de-duplicated), so that the page stays short but weekly sources never vanish.
 8. As a reader, I want Hacker News capped at its top 10 items, so that it does not drown out everything else.
 9. As a reader, I want every item shown for all other sources, so that nothing from a low-volume source is hidden.
 10. As a reader, I want to click an item to strike it through, so that I can see what I have already looked at or decided to skip.
@@ -49,13 +49,13 @@ A small local server on my Mac serves one HTML page. Every hour it fetches a con
 - **Modules (deep, small interfaces):**
   - *Feed fetcher/parser:* given a feed URL, returns normalised items (title, link, description, published time, source). Handles RSS and Atom; handles timeouts and invalid XML by reporting failure rather than throwing into the rest of the app.
   - *Store:* persists items, per-source freshness/failure info, and check-off state. Items are keyed by link; check-off state is keyed by item link. Exact engine (JSON file or SQLite) is a build decision.
-  - *Page renderer:* given stored data and the current time, produces the grouped page: type, then source, then day, newest first, 3-day window, Hacker News capped at 10.
+  - *Page renderer:* given stored data and the current time, produces the grouped page: type, then source, then day, newest first, per source the 3-day window plus its latest 3 items, Hacker News capped at 10.
   - *Scheduler/refresh loop:* fetches all feeds on the hour, catches up if a refresh was missed, takes the clock as an injected dependency.
   - *HTTP layer:* serves the page and accepts the check-off toggle.
 - **Config:** one file listing sources, each with a name, type (podcast, YouTube, newsletter, news site), feed URL, and an optional item cap (Hacker News: 10). Seeded from the verified feeds in `.scratch/daily-brief/sources.md`. Sources with no feed (Python Weekly, DevOps Weekly, KubeWeekly, The Batch, Test & Code) are excluded.
 - **Item display:** title, source name, link, and the feed's own description. No LLM, no summaries, no transcripts.
 - **Page behaviour:** the open page updates when new data arrives, with no manual reload. Strikethrough is toggled by clicking an item and is stored on the server.
-- **Check-off:** a single state meaning looked at or skipped. State for items that have aged out of the 3-day window may be discarded.
+- **Check-off:** a single state meaning looked at or skipped. State for items the store has pruned (it keeps each source's displayed items plus its latest 20) may be discarded.
 - **Failure handling:** a failing feed never affects other sources. Each source records its last successful update; repeated failures show a visible warning; last good items stay visible.
 - **Stack:** not yet chosen. Ticket 01 selects it and records the choice in `AGENTS.md` under a "Stack" heading so later tickets follow it. Suggested default: TypeScript on Node, since the owner works in JS/TS. Owner's JS/TS style rules apply: no single-line `if` statements (always braces), and `return` statements on their own line.
 - **Cost:** near zero. Public feeds only, no paid APIs.
