@@ -33,6 +33,16 @@ function isoDate(value: string): string | null {
   return Number.isNaN(time) ? null : new Date(time).toISOString();
 }
 
+/** Only http(s) links may become an href or a stored item. */
+export function isHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value.trim()).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function atomLink(value: unknown): string {
   const links = toArray(value as Record<string, string> | Record<string, string>[] | undefined);
   const alternate = links.find((l) => l["@_rel"] === undefined || l["@_rel"] === "alternate");
@@ -43,7 +53,7 @@ function parseAtom(feed: { entry?: unknown }, source: string): Item[] {
   const items: Item[] = [];
   for (const raw of toArray(feed.entry as Record<string, unknown> | Record<string, unknown>[] | undefined)) {
     const link = atomLink(raw.link);
-    if (link === "") {
+    if (!isHttpUrl(link)) {
       continue;
     }
     const media = (raw["media:group"] ?? {}) as Record<string, unknown>;
@@ -71,7 +81,7 @@ export function parseFeed(xml: string, source: string): Item[] {
   const items: Item[] = [];
   for (const raw of rawItems) {
     const link = text(raw.link);
-    if (link === "") {
+    if (!isHttpUrl(link)) {
       continue;
     }
     items.push({

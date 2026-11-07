@@ -18,7 +18,11 @@ interface StoreData {
   sources?: Record<string, SourceStatus>;
 }
 
-/** JSON-file store. Items are keyed by link. */
+function itemKey(item: Item): string {
+  return `${item.source}\n${item.link}`;
+}
+
+/** JSON-file store. Items are keyed by source plus link; check-off is keyed by link alone. */
 export class Store {
   private data: StoreData;
   private file: string;
@@ -26,20 +30,22 @@ export class Store {
   constructor(file: string) {
     this.file = file;
     this.data = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { items: {} };
+    // Older stores keyed items by link alone; re-key them.
+    this.data.items = Object.fromEntries(Object.values(this.data.items).map((item) => [itemKey(item), item]));
   }
 
   upsertItems(items: Item[]): void {
     for (const item of items) {
-      this.data.items[item.link] = item;
+      this.data.items[itemKey(item)] = item;
     }
     this.save();
   }
 
   /** Replace everything stored for a source (used for capped sources). */
   replaceSourceItems(source: string, items: Item[]): void {
-    for (const [link, item] of Object.entries(this.data.items)) {
+    for (const [key, item] of Object.entries(this.data.items)) {
       if (item.source === source) {
-        delete this.data.items[link];
+        delete this.data.items[key];
       }
     }
     this.upsertItems(items);

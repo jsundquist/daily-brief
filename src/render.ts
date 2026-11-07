@@ -1,4 +1,4 @@
-import type { Item } from "./feed.ts";
+import { isHttpUrl, type Item } from "./feed.ts";
 import type { SourceStatus } from "./store.ts";
 
 export type SourceType = "podcast" | "youtube" | "newsletter" | "news";
@@ -77,7 +77,7 @@ function renderSource(name: string, items: Item[], status: SourceStatus | undefi
 /** Render stored items to an HTML page grouped by type, source, day. Pure. */
 export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus> = {}, checked: Set<string> = new Set()): string {
   const cutoff = new Date(now.getTime() - WINDOW_MS).toISOString();
-  const recent = items.filter((item) => item.published !== null && item.published >= cutoff);
+  const recent = items.filter((item) => item.published !== null && item.published >= cutoff && isHttpUrl(item.link));
   const sections = TYPE_ORDER.map(({ type, heading }) => {
     const rendered = sources
       .filter((source) => source.type === type)
