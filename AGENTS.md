@@ -15,7 +15,7 @@ TypeScript on Node 24 or newer, run directly with Node's built-in type stripping
 - Install: `npm install`
 - Run: `npm start` (serves on port 3000; override with `PORT` and `DATA_FILE`)
 - Test: `npm test` (Node's built-in `node:test` runner); typecheck with `npm run typecheck`
-- Layout: `src/feed.ts` (fetch and parse), `src/store.ts` (data layer), `src/render.ts` (pure HTML rendering), `src/server.ts` (HTTP and startup), `src/main.ts` (entry and config)
+- Layout: `src/feed.ts` (fetch and parse), `src/store.ts` (data layer), `src/render.ts` (pure HTML rendering), `src/server.ts` (HTTP and startup), `src/sources.ts` (the configured feeds), `src/main.ts` (entry), `test/helpers.ts` (fixture feed server, temp store, `startReady`)
 - Tests drive the real server over HTTP (`startServer({ sources, dataFile, port: 0 })`) against local fixture feeds in `test/fixtures/`, served by `serveFixture` in `test/helpers.ts`. Tests never touch the network.
 - Style: JS/TS `if` statements always use braces; `return` goes on its own line.
 
