@@ -3,4 +3,5 @@
 <item><title>Pod Today</title><link>https://example.com/pod-today</link><pubDate>Sat, 07 Nov 2026 08:00:00 +0000</pubDate><description>Podcast blurb today</description></item>
 <item><title>Pod Yesterday</title><link>https://example.com/pod-yesterday</link><pubDate>Fri, 06 Nov 2026 08:00:00 +0000</pubDate><description>Podcast blurb yesterday</description></item>
 <item><title>Pod Ancient</title><link>https://example.com/pod-ancient</link><pubDate>Mon, 02 Nov 2026 08:00:00 +0000</pubDate><description>too old</description></item>
+<item><title>Pod Older</title><link>https://example.com/pod-older</link><pubDate>Mon, 26 Oct 2026 08:00:00 +0000</pubDate><description>older than the latest three</description></item>
 </channel></rss>

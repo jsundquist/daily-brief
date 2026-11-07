@@ -1,4 +1,5 @@
-import { isHttpUrl, type Item } from "./feed.ts";
+import type { Item } from "./feed.ts";
+import { displayedItems } from "./window.ts";
 import type { SourceStatus } from "./store.ts";
 
 export type SourceType = "podcast" | "youtube" | "newsletter" | "news";
@@ -13,8 +14,6 @@ export interface Source {
 
 /** A source shows a warning after this many consecutive failed fetches. */
 export const WARN_AFTER_FAILURES = 3;
-
-const WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
 const TYPE_ORDER: { type: SourceType; heading: string }[] = [
   { type: "podcast", heading: "Podcasts" },
@@ -90,15 +89,13 @@ function renderSource(name: string, items: Item[], status: SourceStatus | undefi
 
 /** Render stored items to an HTML page grouped by type, source, day. Pure. */
 export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
-  const cutoff = new Date(now.getTime() - WINDOW_MS).toISOString();
-  const recent = items.filter((item) => item.published !== null && item.published >= cutoff && isHttpUrl(item.link));
   const sections = TYPE_ORDER.map(({ type, heading }) => {
     const rendered = sources
       .filter((source) => source.type === type)
       .map((source) =>
         renderSource(
           source.name,
-          recent.filter((item) => item.source === source.name),
+          displayedItems(items.filter((item) => item.source === source.name), now),
           statuses[source.name],
           checked,
         ),

@@ -82,6 +82,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       }
     };
     await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_FETCHES, queue.length) }, worker));
+    store.prune(now());
   }
 
   let lastRefresh = 0;

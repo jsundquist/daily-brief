@@ -10,7 +10,7 @@ function sectionOf(html: string, name: string): string {
   return html.slice(start, html.indexOf("</section>", start));
 }
 
-test("every configured source shows its section and Updated line, even with no items in the window", async () => {
+test("every configured source shows its section and Updated line, even with no items", async () => {
   const old = await serveFixture("test/fixtures/podcast.xml");
   const empty = await serveFeed('<?xml version="1.0"?><rss version="2.0"><channel><title>e</title></channel></rss>');
   const withItems = await serveFixture("test/fixtures/letter.xml");
@@ -32,7 +32,8 @@ test("every configured source shows its section and Updated line, even with no i
     const html = await (await fetch(server.url)).text();
     assert.match(sectionOf(html, "Zed Empty"), /Updated 2026-11-17 12:00 UTC/);
     assert.match(sectionOf(html, "Aaa Pod"), /Updated 2026-11-17 12:00 UTC/);
-    assert.doesNotMatch(sectionOf(html, "Aaa Pod"), /<li>/);
+    assert.match(sectionOf(html, "Aaa Pod"), /Pod Ancient/);
+    assert.doesNotMatch(sectionOf(html, "Zed Empty"), /<li>/);
     assert.match(sectionOf(html, "Hung News"), /Never updated/);
     assert.doesNotMatch(sectionOf(html, "Hung News"), /class="warning"/);
     // type order first, then configured order within a type

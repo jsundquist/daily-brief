@@ -19,7 +19,8 @@ test("Atom feeds, including the YouTube channel feed, are parsed like RSS", asyn
   assert.match(html, /Plain Atom Entry/);
   assert.match(html, /Atom summary text/);
   assert.match(html, /href="https:\/\/example\.com\/plain"/);
-  assert.doesNotMatch(html, /Old Video/);
+  // Old Video is outside the window but is among the source's latest three.
+  assert.match(html, /Old Video/);
 });
 
 test("a source with a cap shows only its top items; uncapped sources show everything", async () => {
@@ -44,7 +45,7 @@ test("a source with a cap shows only its top items; uncapped sources show everyt
   assert.equal(newsletters.match(/<li>/g)?.length, 12);
 });
 
-test("page groups by type, then source, then day newest first, within a 3-day window", async () => {
+test("page groups by type, then source, then day newest first, within a 3-day window plus the latest three", async () => {
   const pod = await serveFixture("test/fixtures/podcast.xml");
   const letter = await serveFixture("test/fixtures/letter.xml");
   const sources = [
@@ -61,7 +62,9 @@ test("page groups by type, then source, then day newest first, within a 3-day wi
   assert.match(html, /Pod Today/);
   assert.match(html, /Podcast blurb today/);
   assert.match(html, /href="https:\/\/example\.com\/pod-today"/);
-  assert.doesNotMatch(html, /Pod Ancient/);
+  // Ancient is outside the window but is among the latest three; Older is not.
+  assert.match(html, /Pod Ancient/);
+  assert.doesNotMatch(html, /Pod Older/);
 
   const at = (needle: string): number => {
     const index = html.indexOf(needle);

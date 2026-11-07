@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Item } from "./feed.ts";
+import { keptItems } from "./window.ts";
 
 export interface SourceStatus {
   /** ISO time of the last successful fetch, or null if none yet. */
@@ -69,6 +70,27 @@ export class Store {
       }
     }
     this.upsertItems(items);
+  }
+
+  /** Drop items the page cannot show and is not buffering, and check-off state for items that are gone. */
+  prune(now: Date): void {
+    const bySource = new Map<string, Item[]>();
+    for (const item of Object.values(this.data.items)) {
+      bySource.set(item.source, [...(bySource.get(item.source) ?? []), item]);
+    }
+    this.data.items = {};
+    for (const items of bySource.values()) {
+      for (const item of keptItems(items, now)) {
+        this.data.items[itemKey(item)] = item;
+      }
+    }
+    const links = new Set(Object.values(this.data.items).map((item) => item.link));
+    for (const link of Object.keys(this.data.checked ?? {})) {
+      if (!links.has(link)) {
+        delete (this.data.checked as Record<string, true>)[link];
+      }
+    }
+    this.save();
   }
 
   recordSuccess(source: string, at: string): void {
