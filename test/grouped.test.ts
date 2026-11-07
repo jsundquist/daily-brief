@@ -1,14 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { startServer } from "../src/server.ts";
-import { serveFixture, tempStore } from "./helpers.ts";
+import { startReady, serveFixture, tempStore } from "./helpers.ts";
 
 const NOW = new Date("2026-11-07T12:00:00Z");
 
 test("Atom feeds, including the YouTube channel feed, are parsed like RSS", async () => {
   const feed = await serveFixture("test/fixtures/youtube.xml");
   const sources = [{ name: "CNCF", type: "youtube" as const, url: feed.url }];
-  const server = await startServer({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
+  const server = await startReady({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
   const html = await (await fetch(server.url)).text().finally(async () => {
     await server.close();
     await feed.close();
@@ -30,7 +29,7 @@ test("a source with a cap shows only its top items; uncapped sources show everyt
     { name: "Capped", type: "news" as const, url: many.url, cap: 10 },
     { name: "Uncapped", type: "newsletter" as const, url: uncapped.url },
   ];
-  const server = await startServer({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
+  const server = await startReady({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
   const html = await (await fetch(server.url)).text().finally(async () => {
     await server.close();
     await many.close();
@@ -52,7 +51,7 @@ test("page groups by type, then source, then day newest first, within a 3-day wi
     { name: "Some Letter", type: "newsletter" as const, url: letter.url },
     { name: "Some Pod", type: "podcast" as const, url: pod.url },
   ];
-  const server = await startServer({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
+  const server = await startReady({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
   const html = await (await fetch(server.url)).text().finally(async () => {
     await server.close();
     await pod.close();

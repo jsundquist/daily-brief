@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { startServer } from "../src/server.ts";
-import { serveFixture, tempStore } from "./helpers.ts";
+import { startReady, serveFixture, tempStore } from "./helpers.ts";
 
 const NOW = new Date("2026-11-07T12:00:00Z");
 
@@ -28,7 +27,7 @@ const TWO = "https://example.com/two";
 test("clicking an item strikes it through and clicking again undoes it", async () => {
   const feed = await serveFixture("test/fixtures/hn.xml");
   const sources = [{ name: "HN", type: "news" as const, url: feed.url }];
-  const server = await startServer({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
+  const server = await startReady({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
   try {
     assert.doesNotMatch(await itemTag(server.url, ONE), /class="done"/);
     await toggle(server.url, ONE);
@@ -46,11 +45,11 @@ test("struck-through state survives a server restart and a re-fetch of the same 
   const feed = await serveFixture("test/fixtures/hn.xml");
   const sources = [{ name: "HN", type: "news" as const, url: feed.url }];
   const dataFile = tempStore();
-  const first = await startServer({ sources, dataFile, port: 0, now: () => NOW });
+  const first = await startReady({ sources, dataFile, port: 0, now: () => NOW });
   await toggle(first.url, ONE);
   await first.close();
   // Restart: the server fetches the feed again on startup, re-storing the same links.
-  const second = await startServer({ sources, dataFile, port: 0, now: () => NOW });
+  const second = await startReady({ sources, dataFile, port: 0, now: () => NOW });
   try {
     assert.match(await itemTag(second.url, ONE), /class="done"/);
     assert.doesNotMatch(await itemTag(second.url, TWO), /class="done"/);

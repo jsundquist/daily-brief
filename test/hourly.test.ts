@@ -1,8 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { startServer } from "../src/server.ts";
-import { serveFixture, tempStore } from "./helpers.ts";
+import { startReady, serveFixture, tempStore } from "./helpers.ts";
 
 const T0 = new Date("2026-11-07T12:00:00Z");
 const MIN = 60 * 1000;
@@ -21,7 +20,7 @@ async function until(condition: () => boolean): Promise<void> {
 async function setup(cap?: number, fixture = "test/fixtures/hn.xml") {
   const feed = await serveFixture(fixture);
   let clock = T0;
-  const server = await startServer({
+  const server = await startReady({
     sources: [{ name: "Feed", type: "news" as const, url: feed.url, cap }],
     dataFile: tempStore(),
     port: 0,

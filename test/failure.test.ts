@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { startServer } from "../src/server.ts";
-import { serveFixture, tempStore, type FixtureFeed } from "./helpers.ts";
+import { startReady, serveFixture, tempStore, type FixtureFeed } from "./helpers.ts";
 
 type Mode = "404" | "junk" | "hang";
 
@@ -22,7 +21,7 @@ async function setup() {
   const flaky = await serveFixture("test/fixtures/hn.xml");
   const good = await serveFixture("test/fixtures/letter.xml");
   let clock = T0;
-  const server = await startServer({
+  const server = await startReady({
     sources: [
       { name: "Flaky", type: "news" as const, url: flaky.url },
       { name: "Good", type: "newsletter" as const, url: good.url },

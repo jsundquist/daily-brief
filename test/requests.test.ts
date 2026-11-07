@@ -2,15 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { request } from "node:http";
-import { startServer } from "../src/server.ts";
-import { serveFixture, tempStore } from "./helpers.ts";
+import { startReady, serveFixture, tempStore } from "./helpers.ts";
 
 const NOW = new Date("2026-11-07T12:00:00Z");
 const ONE = "https://example.com/one";
 
 async function setup() {
   const feed = await serveFixture("test/fixtures/hn.xml");
-  const server = await startServer({
+  const server = await startReady({
     sources: [{ name: "HN", type: "news" as const, url: feed.url }],
     dataFile: tempStore(),
     port: 0,

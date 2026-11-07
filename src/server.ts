@@ -42,8 +42,13 @@ function readBody(req: IncomingMessage, limit: number): Promise<string> {
   });
 }
 
+/** At most this many feeds are fetched at the same time. */
+const MAX_CONCURRENT_FETCHES = 5;
+
 export interface RunningServer {
   url: string;
+  /** Resolves when the startup refresh has finished (it runs in the background). */
+  firstRefresh: Promise<void>;
   close: () => Promise<void>;
 }
 
@@ -51,23 +56,32 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const now = options.now ?? (() => new Date());
   const store = new Store(options.dataFile);
 
-  /** Fetch every source once. A failing source never affects the others. */
+  /** Fetch one source. A failure is recorded and never propagates to the others. */
+  async function refreshSource(source: Source): Promise<void> {
+    try {
+      const items = await fetchFeed(source.url, source.name, source.cap, options.fetchTimeoutMs);
+      if (source.cap === undefined) {
+        store.upsertItems(items);
+      } else {
+        store.replaceSourceItems(source.name, items);
+      }
+      store.recordSuccess(source.name, now().toISOString());
+    } catch (error) {
+      store.recordFailure(source.name, now().toISOString());
+      console.error(`Failed to fetch ${source.name}:`, error);
+    }
+  }
+
+  /** Fetch every source once, a few at a time. */
   async function runRefresh(): Promise<void> {
     lastRefresh = now().getTime();
-    for (const source of options.sources) {
-      try {
-        const items = await fetchFeed(source.url, source.name, source.cap, options.fetchTimeoutMs);
-        if (source.cap === undefined) {
-          store.upsertItems(items);
-        } else {
-          store.replaceSourceItems(source.name, items);
-        }
-        store.recordSuccess(source.name, now().toISOString());
-      } catch (error) {
-        store.recordFailure(source.name, now().toISOString());
-        console.error(`Failed to fetch ${source.name}:`, error);
+    const queue = [...options.sources];
+    const worker = async (): Promise<void> => {
+      for (let source = queue.shift(); source !== undefined; source = queue.shift()) {
+        await refreshSource(source);
       }
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_FETCHES, queue.length) }, worker));
   }
 
   let lastRefresh = 0;
@@ -80,19 +94,6 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     });
     return inFlight;
   }
-
-  await refresh();
-
-  /**
-   * Driven by the injected clock rather than a one-hour timer, so a Mac that
-   * slept past an hour mark refreshes on the first tick after waking.
-   */
-  const ticker = setInterval(() => {
-    if (inFlight === null && now().getTime() - lastRefresh >= REFRESH_INTERVAL_MS) {
-      void refresh();
-    }
-  }, options.tickMs ?? 30_000);
-  ticker.unref();
 
   function render(): string {
     return renderPage(store.listItems(), options.sources, now(), store.sourceStatuses(), store.checkedLinks());
@@ -176,7 +177,21 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
 
   await new Promise<void>((resolve) => server.listen(options.port, "127.0.0.1", resolve));
   const port = (server.address() as AddressInfo).port;
+  const firstRefresh = refresh();
+
+  /**
+   * Driven by the injected clock rather than a one-hour timer, so a Mac that
+   * slept past an hour mark refreshes on the first tick after waking.
+   */
+  const ticker = setInterval(() => {
+    if (inFlight === null && now().getTime() - lastRefresh >= REFRESH_INTERVAL_MS) {
+      void refresh();
+    }
+  }, options.tickMs ?? 30_000);
+  ticker.unref();
+
   return {
+    firstRefresh,
     url: `http://127.0.0.1:${port}/`,
     close: () => {
       clearInterval(ticker);

@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { startServer } from "../src/server.ts";
-import { serveFeed, tempStore } from "./helpers.ts";
+import { startReady, serveFeed, tempStore } from "./helpers.ts";
 
 const NOW = new Date("2026-11-07T12:00:00Z");
 
@@ -28,7 +27,7 @@ test("only http and https links are shown; javascript: and other schemes are dro
     ]),
   );
   const atomFeed = await serveFeed(atom);
-  const server = await startServer({
+  const server = await startReady({
     sources: [
       { name: "RSS", type: "news" as const, url: feed.url },
       { name: "ATOM", type: "youtube" as const, url: atomFeed.url },
@@ -60,7 +59,7 @@ test("two sources sharing a link each keep their own item; check-off applies to 
     { name: "Source A", type: "news" as const, url: a.url },
     { name: "Source B", type: "newsletter" as const, url: b.url },
   ];
-  const server = await startServer({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
+  const server = await startReady({ sources, dataFile: tempStore(), port: 0, now: () => NOW });
   try {
     const html = await (await fetch(server.url)).text();
     assert.match(html, /Shared From A/);

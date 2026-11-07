@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { startServer, type RunningServer, type ServerOptions } from "../src/server.ts";
 
 export interface FeedState {
   body: Buffer;
@@ -51,4 +52,11 @@ export function serveFixture(path: string): Promise<FixtureFeed> {
 /** A fresh, empty store file path in a temp directory. */
 export function tempStore(): string {
   return join(mkdtempSync(join(tmpdir(), "brief-")), "store.json");
+}
+
+/** Start the server and wait for its first (background) refresh to finish. */
+export async function startReady(options: ServerOptions): Promise<RunningServer> {
+  const server = await startServer(options);
+  await server.firstRefresh;
+  return server;
 }

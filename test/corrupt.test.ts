@@ -2,8 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname } from "node:path";
-import { startServer } from "../src/server.ts";
-import { serveFixture, tempStore } from "./helpers.ts";
+import { startReady, serveFixture, tempStore } from "./helpers.ts";
 
 const NOW = new Date("2026-11-07T12:00:00Z");
 
@@ -15,7 +14,7 @@ for (const [label, content] of [
     const feed = await serveFixture("test/fixtures/hn.xml");
     const dataFile = tempStore();
     writeFileSync(dataFile, content);
-    const server = await startServer({
+    const server = await startReady({
       sources: [{ name: "HN", type: "news" as const, url: feed.url }],
       dataFile,
       port: 0,
