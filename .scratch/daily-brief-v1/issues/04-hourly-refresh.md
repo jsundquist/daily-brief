@@ -11,3 +11,5 @@
 - [ ] Check-off state is intact after a refresh
 - [ ] The server restarts automatically if it stops and starts at login
 - [ ] Missed refreshes (Mac asleep) are caught up on wake
+
+**Note from ticket 02:** the Hacker News cap keeps the first 10 items in feed order at fetch time, but items stored from earlier fetches are not removed. On each refresh, a capped source's stored items should be replaced by the newly fetched capped set, so the page never shows more than the cap.
