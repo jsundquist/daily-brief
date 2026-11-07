@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fetchFeed } from "./feed.ts";
 import { renderPage, type Source } from "./render.ts";
@@ -19,6 +19,28 @@ export interface ServerOptions {
 
 /** Feeds are refreshed once this much clock time has passed since the last refresh. */
 export const REFRESH_INTERVAL_MS = 60 * 60 * 1000;
+
+/** Largest request body accepted, in bytes. */
+const MAX_BODY_BYTES = 4096;
+
+function readBody(req: IncomingMessage, limit: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > limit) {
+        // Keep draining so the client can read the 413, but stop buffering.
+        reject(new Error("body too large"));
+        chunks.length = 0;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
+}
 
 export interface RunningServer {
   url: string;
@@ -76,6 +98,18 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     return renderPage(store.listItems(), options.sources, now(), store.sourceStatuses(), store.checkedLinks());
   }
 
+  /** Same-origin only: the Host must be this server and any Origin must match it. */
+  function isLocalRequest(req: IncomingMessage): boolean {
+    const port = (server.address() as AddressInfo).port;
+    const hosts = [`127.0.0.1:${port}`, `localhost:${port}`];
+    const host = req.headers.host ?? "";
+    if (!hosts.includes(host)) {
+      return false;
+    }
+    const origin = req.headers.origin;
+    return origin === undefined || origin === `http://${host}`;
+  }
+
   const server = createServer((req, res) => {
     if (req.method === "GET" && req.url === "/") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
@@ -87,29 +121,53 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       res.end(createHash("sha1").update(render()).digest("hex"));
       return;
     }
+    if (req.method === "POST" && (req.url === "/refresh" || req.url === "/toggle")) {
+      if (!isLocalRequest(req)) {
+        res.writeHead(403);
+        res.end("Forbidden");
+        return;
+      }
+    }
     if (req.method === "POST" && req.url === "/refresh") {
-      refresh().then(() => {
-        res.writeHead(204);
-        res.end();
-      });
+      refresh()
+        .then(() => {
+          res.writeHead(204);
+          res.end();
+        })
+        .catch((error) => {
+          console.error("Refresh failed:", error);
+          res.writeHead(500);
+          res.end();
+        });
       return;
     }
     if (req.method === "POST" && req.url === "/toggle") {
-      const chunks: Buffer[] = [];
-      req.on("data", (chunk: Buffer) => chunks.push(chunk));
-      req.on("end", () => {
-        try {
-          const { link } = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-          if (typeof link !== "string") {
-            throw new Error("link must be a string");
-          }
-          store.toggleChecked(link);
-          res.writeHead(204);
-        } catch {
-          res.writeHead(400);
-        }
+      if (!/^application\/json\s*(;|$)/i.test(req.headers["content-type"] ?? "")) {
+        res.writeHead(415);
         res.end();
-      });
+        return;
+      }
+      readBody(req, MAX_BODY_BYTES).then(
+        (body) => {
+          try {
+            const { link } = JSON.parse(body);
+            if (typeof link !== "string") {
+              throw new Error("link must be a string");
+            }
+            if (store.hasLink(link)) {
+              store.toggleChecked(link);
+            }
+            res.writeHead(204);
+          } catch {
+            res.writeHead(400);
+          }
+          res.end();
+        },
+        () => {
+          res.writeHead(413, { connection: "close" });
+          res.end();
+        },
+      );
       return;
     }
     res.writeHead(404);

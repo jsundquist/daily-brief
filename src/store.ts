@@ -79,6 +79,10 @@ export class Store {
     return Object.values(this.data.items);
   }
 
+  hasLink(link: string): boolean {
+    return Object.values(this.data.items).some((item) => item.link === link);
+  }
+
   toggleChecked(link: string): void {
     const checked = (this.data.checked ??= {});
     if (checked[link]) {
