@@ -14,11 +14,14 @@ A **v1 spec** for a daily brief, ready to hand to a build session: which sources
 - Tiering: LLM judges items against a user-written interest profile (must-see / worth-a-skim / skip).
 - Hot trend: same topic or linked URL in 2+ distinct sources within a window.
 - Delivery: one digest per morning.
+- All of the user's newsletters are free (no paywalls to handle).
 - No Gmail access: the user will not grant access to personal Gmail. Newsletters must come from RSS feeds, public web archives, or a dedicated inbox.
 
 ## Decisions so far
 
 <!-- one line per resolved ticket: - [Title](issues/NN-slug.md): gist -->
+
+- [Inventory your sources](issues/02-source-inventory.md): 8 podcasts, 10 newsletters, 2 news sites, CNCF on YouTube; all newsletters free; details in `sources.md`.
 
 ## Not yet specified
 
