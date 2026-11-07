@@ -90,7 +90,9 @@ export function renderPage(items: Item[], sources: Source[], now: Date, statuses
 <html lang="en"><head><meta charset="utf-8"><title>Daily Brief</title>
 <style>div.done { text-decoration: line-through; opacity: 0.6; } div[data-link] { cursor: pointer; }</style></head>
 <body><h1>Daily Brief</h1>
+<div id="content">
 ${sections.join("\n")}
+</div>
 <script>
 document.addEventListener("click", (event) => {
   const target = event.target;
@@ -111,6 +113,23 @@ document.addEventListener("click", (event) => {
     }
   });
 });
+let version = null;
+async function poll() {
+  try {
+    const next = await (await fetch("/version")).text();
+    if (version !== null && next !== version) {
+      const html = await (await fetch("/")).text();
+      const fresh = new DOMParser().parseFromString(html, "text/html").getElementById("content");
+      const current = document.getElementById("content");
+      if (fresh && current) {
+        current.innerHTML = fresh.innerHTML;
+      }
+    }
+    version = next;
+  } catch {}
+}
+poll();
+setInterval(poll, 30000);
 </script>
 </body></html>
 `;

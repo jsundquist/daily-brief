@@ -35,6 +35,16 @@ export class Store {
     this.save();
   }
 
+  /** Replace everything stored for a source (used for capped sources). */
+  replaceSourceItems(source: string, items: Item[]): void {
+    for (const [link, item] of Object.entries(this.data.items)) {
+      if (item.source === source) {
+        delete this.data.items[link];
+      }
+    }
+    this.upsertItems(items);
+  }
+
   recordSuccess(source: string, at: string): void {
     this.sourceMap()[source] = { lastSuccess: at, consecutiveFailures: 0, failingSince: null };
     this.save();
