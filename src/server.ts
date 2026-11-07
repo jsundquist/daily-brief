@@ -10,6 +10,8 @@ export interface ServerOptions {
   port: number;
   /** Injected clock; defaults to the real time. */
   now?: () => Date;
+  /** Per-feed fetch timeout in milliseconds. */
+  fetchTimeoutMs?: number;
 }
 
 export interface RunningServer {
@@ -21,18 +23,32 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const now = options.now ?? (() => new Date());
   const store = new Store(options.dataFile);
 
-  for (const source of options.sources) {
-    try {
-      store.upsertItems(await fetchFeed(source.url, source.name, source.cap));
-    } catch (error) {
-      console.error(`Failed to fetch ${source.name}:`, error);
+  /** Fetch every source once. A failing source never affects the others. */
+  async function refresh(): Promise<void> {
+    for (const source of options.sources) {
+      try {
+        store.upsertItems(await fetchFeed(source.url, source.name, source.cap, options.fetchTimeoutMs));
+        store.recordSuccess(source.name, now().toISOString());
+      } catch (error) {
+        store.recordFailure(source.name, now().toISOString());
+        console.error(`Failed to fetch ${source.name}:`, error);
+      }
     }
   }
+
+  await refresh();
 
   const server = createServer((req, res) => {
     if (req.method === "GET" && req.url === "/") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(renderPage(store.listItems(), options.sources, now()));
+      res.end(renderPage(store.listItems(), options.sources, now(), store.sourceStatuses()));
+      return;
+    }
+    if (req.method === "POST" && req.url === "/refresh") {
+      refresh().then(() => {
+        res.writeHead(204);
+        res.end();
+      });
       return;
     }
     res.writeHead(404);
