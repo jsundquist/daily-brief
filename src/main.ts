@@ -1,6 +1,5 @@
-import { startServer, type Source } from "./server.ts";
-
-const sources: Source[] = [{ name: "Hacker News", type: "news", url: "https://news.ycombinator.com/rss" }];
+import { startServer } from "./server.ts";
+import { sources } from "./sources.ts";
 
 const port = Number(process.env.PORT ?? 3000);
 const dataFile = process.env.DATA_FILE ?? "data/store.json";

@@ -33,9 +33,37 @@ function isoDate(value: string): string | null {
   return Number.isNaN(time) ? null : new Date(time).toISOString();
 }
 
-/** Parse RSS 2.0 XML into normalised items. Throws on invalid input. */
+function atomLink(value: unknown): string {
+  const links = toArray(value as Record<string, string> | Record<string, string>[] | undefined);
+  const alternate = links.find((l) => l["@_rel"] === undefined || l["@_rel"] === "alternate");
+  return alternate?.["@_href"] ?? "";
+}
+
+function parseAtom(feed: { entry?: unknown }, source: string): Item[] {
+  const items: Item[] = [];
+  for (const raw of toArray(feed.entry as Record<string, unknown> | Record<string, unknown>[] | undefined)) {
+    const link = atomLink(raw.link);
+    if (link === "") {
+      continue;
+    }
+    const media = (raw["media:group"] ?? {}) as Record<string, unknown>;
+    items.push({
+      title: text(raw.title),
+      link,
+      description: text(raw.summary) || text(media["media:description"]),
+      published: isoDate(text(raw.published) || text(raw.updated)),
+      source,
+    });
+  }
+  return items;
+}
+
+/** Parse RSS 2.0 or Atom XML into normalised items. Throws on invalid input. */
 export function parseFeed(xml: string, source: string): Item[] {
   const doc = parser.parse(xml);
+  if (doc?.feed) {
+    return parseAtom(doc.feed, source);
+  }
   const rawItems = toArray(doc?.rss?.channel?.item);
   const items: Item[] = [];
   for (const raw of rawItems) {
@@ -54,10 +82,11 @@ export function parseFeed(xml: string, source: string): Item[] {
   return items;
 }
 
-export async function fetchFeed(url: string, source: string): Promise<Item[]> {
+export async function fetchFeed(url: string, source: string, cap?: number): Promise<Item[]> {
   const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
   if (!response.ok) {
     throw new Error(`Feed ${url} responded ${response.status}`);
   }
-  return parseFeed(await response.text(), source);
+  const items = parseFeed(await response.text(), source);
+  return cap === undefined ? items : items.slice(0, cap);
 }

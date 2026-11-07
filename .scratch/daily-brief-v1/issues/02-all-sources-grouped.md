@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] Adding or removing a source means editing only the config list
-- [ ] Both RSS and Atom feeds (including the YouTube channel feed) are parsed
-- [ ] Items older than 3 days are not shown
-- [ ] Hacker News shows only its top 10; other sources show every item
-- [ ] Dropped sources (no feed) are absent, and nothing is invented for them
-- [ ] Page grouping and ordering match the stated type, source, day, newest-first layout
+- [x] Adding or removing a source means editing only the config list
+- [x] Both RSS and Atom feeds (including the YouTube channel feed) are parsed
+- [x] Items older than 3 days are not shown
+- [x] Hacker News shows only its top 10; other sources show every item
+- [x] Dropped sources (no feed) are absent, and nothing is invented for them
+- [x] Page grouping and ordering match the stated type, source, day, newest-first layout

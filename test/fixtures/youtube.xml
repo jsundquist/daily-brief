@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <title>CNCF</title>
+ <entry>
+  <id>yt:video:abc123</id>
+  <yt:videoId>abc123</yt:videoId>
+  <title>Keynote: Kubernetes &amp; You</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=abc123"/>
+  <published>2026-11-06T15:00:00+00:00</published>
+  <updated>2026-11-06T16:00:00+00:00</updated>
+  <media:group>
+   <media:title>Keynote: Kubernetes &amp; You</media:title>
+   <media:description>Video description text</media:description>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:old999</id>
+  <title>Old Video</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=old999"/>
+  <published>2026-10-01T15:00:00+00:00</published>
+  <media:group><media:description>ancient</media:description></media:group>
+ </entry>
+ <entry>
+  <id>tag:example.com,2026:plain</id>
+  <title>Plain Atom Entry</title>
+  <link href="https://example.com/plain"/>
+  <updated>2026-11-07T01:00:00Z</updated>
+  <summary>Atom summary text</summary>
+ </entry>
+</feed>

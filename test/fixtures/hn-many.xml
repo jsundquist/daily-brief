@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<rss version="2.0"><channel><title>HN</title>
+<item><title>Story 1</title><link>https://example.com/story-1</link><pubDate>Sat, 07 Nov 2026 11:00:00 +0000</pubDate><description>desc 1</description></item>
+<item><title>Story 2</title><link>https://example.com/story-2</link><pubDate>Sat, 07 Nov 2026 10:00:00 +0000</pubDate><description>desc 2</description></item>
+<item><title>Story 3</title><link>https://example.com/story-3</link><pubDate>Sat, 07 Nov 2026 09:00:00 +0000</pubDate><description>desc 3</description></item>
+<item><title>Story 4</title><link>https://example.com/story-4</link><pubDate>Sat, 07 Nov 2026 08:00:00 +0000</pubDate><description>desc 4</description></item>
+<item><title>Story 5</title><link>https://example.com/story-5</link><pubDate>Sat, 07 Nov 2026 07:00:00 +0000</pubDate><description>desc 5</description></item>
+<item><title>Story 6</title><link>https://example.com/story-6</link><pubDate>Sat, 07 Nov 2026 06:00:00 +0000</pubDate><description>desc 6</description></item>
+<item><title>Story 7</title><link>https://example.com/story-7</link><pubDate>Sat, 07 Nov 2026 05:00:00 +0000</pubDate><description>desc 7</description></item>
+<item><title>Story 8</title><link>https://example.com/story-8</link><pubDate>Sat, 07 Nov 2026 04:00:00 +0000</pubDate><description>desc 8</description></item>
+<item><title>Story 9</title><link>https://example.com/story-9</link><pubDate>Sat, 07 Nov 2026 03:00:00 +0000</pubDate><description>desc 9</description></item>
+<item><title>Story 10</title><link>https://example.com/story-10</link><pubDate>Sat, 07 Nov 2026 02:00:00 +0000</pubDate><description>desc 10</description></item>
+<item><title>Story 11</title><link>https://example.com/story-11</link><pubDate>Sat, 07 Nov 2026 01:00:00 +0000</pubDate><description>desc 11</description></item>
+<item><title>Story 12</title><link>https://example.com/story-12</link><pubDate>Sat, 07 Nov 2026 00:00:00 +0000</pubDate><description>desc 12</description></item>
+</channel></rss>

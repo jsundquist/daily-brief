@@ -1,19 +1,15 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fetchFeed } from "./feed.ts";
-import { renderPage } from "./render.ts";
+import { renderPage, type Source } from "./render.ts";
 import { Store } from "./store.ts";
-
-export interface Source {
-  name: string;
-  type: string;
-  url: string;
-}
 
 export interface ServerOptions {
   sources: Source[];
   dataFile: string;
   port: number;
+  /** Injected clock; defaults to the real time. */
+  now?: () => Date;
 }
 
 export interface RunningServer {
@@ -22,11 +18,12 @@ export interface RunningServer {
 }
 
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
+  const now = options.now ?? (() => new Date());
   const store = new Store(options.dataFile);
 
   for (const source of options.sources) {
     try {
-      store.upsertItems(await fetchFeed(source.url, source.name));
+      store.upsertItems(await fetchFeed(source.url, source.name, source.cap));
     } catch (error) {
       console.error(`Failed to fetch ${source.name}:`, error);
     }
@@ -35,7 +32,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const server = createServer((req, res) => {
     if (req.method === "GET" && req.url === "/") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(renderPage(store.listItems()));
+      res.end(renderPage(store.listItems(), options.sources, now()));
       return;
     }
     res.writeHead(404);
