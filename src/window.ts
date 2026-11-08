@@ -12,8 +12,8 @@ export const LATEST_PER_SOURCE = 3;
 /** The store keeps this many of a source's latest publications (more if the page shows more). */
 export const BUFFER_PER_SOURCE = 20;
 
-/** Podcasts show everything from this long ago until now, and nothing older. */
-export const PODCAST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+/** Podcasts and daily newsletters show everything from this long ago until now, and nothing older. */
+export const RECENT_WINDOW_MS = 4 * 24 * 60 * 60 * 1000;
 
 function newestFirst(a: Item, b: Item): number {
   return (b.published ?? "").localeCompare(a.published ?? "");
@@ -44,10 +44,17 @@ export function keptItems(sourceItems: Item[], now: Date): Item[] {
   return sourceItems.filter((item) => shown.has(item) || newest.has(item.published ?? ""));
 }
 
-/** The podcast items shown: published within the last month, newest first. */
-export function podcastItems(sourceItems: Item[], now: Date): Item[] {
-  const cutoff = new Date(now.getTime() - PODCAST_WINDOW_MS).toISOString();
+/** The items shown for podcasts and daily newsletters: published within the last 4 days, newest first. */
+export function recentItems(sourceItems: Item[], now: Date): Item[] {
+  const cutoff = new Date(now.getTime() - RECENT_WINDOW_MS).toISOString();
   return sourceItems
     .filter((item) => item.published !== null && item.published >= cutoff && isHttpUrl(item.link))
     .sort(newestFirst);
+}
+
+/** The items shown for ONE weekly newsletter: everything from the last day it published, however old. */
+export function latestDayItems(sourceItems: Item[]): Item[] {
+  const showable = sourceItems.filter((item) => item.published !== null && isHttpUrl(item.link)).sort(newestFirst);
+  const day = showable[0]?.published?.slice(0, 10);
+  return showable.filter((item) => (item.published as string).slice(0, 10) === day);
 }

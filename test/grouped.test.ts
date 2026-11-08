@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { startReady, serveFixture, tempStore } from "./helpers.ts";
+import { startReady, serveFeed, serveFixture, tempStore } from "./helpers.ts";
 
 const NOW = new Date("2026-11-07T12:00:00Z");
 
@@ -62,9 +62,10 @@ test("page groups by type, then source, then day newest first, within a 3-day wi
   assert.match(html, /Pod Today/);
   assert.match(html, /Podcast blurb today/);
   assert.match(html, /href="https:\/\/example\.com\/pod-today"/);
-  // podcasts show everything from the past month, as "title (producer)" with the summary under it
-  assert.match(html, /Pod Ancient/);
-  assert.match(html, /Pod Older/);
+  // podcasts show the last 4 days, as "title (producer)" with the summary under it
+  assert.match(html, /Pod Yesterday/);
+  assert.doesNotMatch(html, /Pod Ancient/);
+  assert.doesNotMatch(html, /Pod Older/);
   assert.match(html, /<\/a> <small>\(Some Pod\)<\/small><p>Podcast blurb today<\/p>/);
   // every link opens in a new tab without opener or referrer
   for (const anchor of html.match(/<a [^>]*>/g) ?? []) {
@@ -84,13 +85,13 @@ test("page groups by type, then source, then day newest first, within a 3-day wi
   assert.ok(at("Pod Today") < at("Pod Yesterday"));
 });
 
-test("podcasts older than a month are not shown", async () => {
+test("podcasts older than 4 days are not shown", async () => {
   const pod = await serveFixture("test/fixtures/podcast.xml");
   const server = await startReady({
     sources: [{ name: "Some Pod", type: "podcast" as const, url: pod.url }],
     dataFile: tempStore(),
     port: 0,
-    now: () => new Date(NOW.getTime() + 40 * 24 * 60 * 60 * 1000),
+    now: () => new Date(NOW.getTime() + 5 * 24 * 60 * 60 * 1000),
   });
   const html = await (await fetch(server.url)).text().finally(async () => {
     await server.close();
@@ -121,4 +122,35 @@ test("newsletter articles from every newsletter are listed together by day as ti
   assert.match(html, /<small>\(Letter A\)<\/small>/);
   assert.match(html, /<small>\(Letter B\)<\/small>/);
   assert.equal(html.match(/<h4>2026-11-06<\/h4>/g)?.length, 1);
+});
+
+test("daily newsletters show 4 days; weekly newsletters show only the last day they published", async () => {
+  const feedXml = (items: [string, string][]): string =>
+    `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>${items
+      .map(([title, date]) => `<item><title>${title}</title><link>https://example.com/${title.replace(/ /g, "-")}</link><pubDate>${date}</pubDate><description>d</description></item>`)
+      .join("")}</channel></rss>`;
+  const daily = await serveFeed(feedXml([["Daily New", "Fri, 06 Nov 2026 07:00:00 +0000"], ["Daily Old", "Mon, 26 Oct 2026 07:00:00 +0000"]]));
+  const weekly = await serveFeed(
+    feedXml([["Weekly Latest A", "Mon, 02 Nov 2026 07:00:00 +0000"], ["Weekly Latest B", "Mon, 02 Nov 2026 06:00:00 +0000"], ["Weekly Prior", "Mon, 26 Oct 2026 07:00:00 +0000"]]),
+  );
+  const server = await startReady({
+    sources: [
+      { name: "Daily Letter", type: "newsletter" as const, url: daily.url },
+      { name: "Weekly Letter", type: "newsletter" as const, url: weekly.url, cadence: "weekly" as const },
+    ],
+    dataFile: tempStore(),
+    port: 0,
+    now: () => NOW,
+  });
+  const html = await (await fetch(server.url)).text().finally(async () => {
+    await server.close();
+    await daily.close();
+    await weekly.close();
+  });
+  assert.ok(html.indexOf("<h3>Daily</h3>") < html.indexOf("Daily New"));
+  assert.ok(html.indexOf("Daily New") < html.indexOf("<h3>Weekly</h3>"));
+  assert.ok(html.indexOf("<h3>Weekly</h3>") < html.indexOf("Weekly Latest A"));
+  assert.match(html, /Weekly Latest B/);
+  assert.doesNotMatch(html, /Daily Old/);
+  assert.doesNotMatch(html, /Weekly Prior/);
 });

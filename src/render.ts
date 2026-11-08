@@ -1,6 +1,6 @@
 import type { ArticleFormat } from "./articles.ts";
 import type { Item } from "./feed.ts";
-import { displayedItems, podcastItems } from "./window.ts";
+import { displayedItems, latestDayItems, recentItems } from "./window.ts";
 import type { SourceStatus } from "./store.ts";
 
 export type SourceType = "podcast" | "youtube" | "newsletter" | "news";
@@ -13,6 +13,8 @@ export interface Source {
   cap?: number;
   /** Split each issue of this newsletter into its individual articles. */
   articles?: ArticleFormat;
+  /** Newsletters only: "weekly" shows just the last day published; the default "daily" shows the last 4 days. */
+  cadence?: "daily" | "weekly";
 }
 
 /** A source shows a warning after this many consecutive failed fetches. */
@@ -123,15 +125,27 @@ function renderSource(name: string, items: Item[], status: SourceStatus | undefi
 /** Render stored items to an HTML page grouped by type, source, day. Pure. */
 export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
   const sections = TYPE_ORDER.map(({ type, heading }) => {
-    if (type === "podcast" || type === "newsletter") {
+    if (type === "podcast") {
       const ofType = sources.filter((source) => source.type === type);
       const names = new Set(ofType.map((source) => source.name));
-      const shown =
-        type === "podcast"
-          ? podcastItems(items.filter((item) => names.has(item.source)), now)
-          : ofType.flatMap((source) => displayedItems(items.filter((item) => item.source === source.name), now));
-      const list = renderDayList(shown, ofType, statuses, checked);
+      const list = renderDayList(recentItems(items.filter((item) => names.has(item.source)), now), ofType, statuses, checked);
       return list === "" ? "" : `<section><h2>${heading}</h2>\n${list}\n</section>`;
+    }
+    if (type === "newsletter") {
+      const letters = sources.filter((source) => source.type === type);
+      const groups = [
+        { title: "Daily", ofCadence: letters.filter((source) => source.cadence !== "weekly") },
+        { title: "Weekly", ofCadence: letters.filter((source) => source.cadence === "weekly") },
+      ].map(({ title, ofCadence }) => {
+        const shown = ofCadence.flatMap((source) => {
+          const own = items.filter((item) => item.source === source.name);
+          return title === "Weekly" ? latestDayItems(own) : recentItems(own, now);
+        });
+        const list = renderDayList(shown, ofCadence, statuses, checked);
+        return list === "" ? "" : `<section><h3>${title}</h3>\n${list}\n</section>`;
+      });
+      const body = groups.filter((group) => group !== "").join("\n");
+      return body === "" ? "" : `<section><h2>${heading}</h2>\n${body}\n</section>`;
     }
     const rendered = sources
       .filter((source) => source.type === type)
