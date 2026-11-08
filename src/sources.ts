@@ -7,6 +7,7 @@ export const sources: Source[] = [
   { name: "Go Time", type: "podcast", url: "https://changelog.com/gotime/feed" },
   { name: "Practical AI", type: "podcast", url: "https://changelog.com/practicalai/feed" },
   { name: "Ship It!", type: "podcast", url: "https://changelog.com/shipit/feed" },
+  { name: "JavaScript Jabber", type: "podcast", url: "https://www.spreaker.com/show/6102064/episodes/feed" },
   { name: "Latent Space (podcast)", type: "podcast", url: "https://podcast.latent.space/feed.xml" },
   { name: "Kubernetes Podcast from Google", type: "podcast", url: "https://kubernetespodcast.com/feeds/audio.xml" },
   {

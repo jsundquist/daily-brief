@@ -1,5 +1,5 @@
 import type { Item } from "./feed.ts";
-import { displayedItems } from "./window.ts";
+import { displayedItems, podcastItems } from "./window.ts";
 import type { SourceStatus } from "./store.ts";
 
 export type SourceType = "podcast" | "youtube" | "newsletter" | "news";
@@ -50,18 +50,50 @@ function isFailing(status: SourceStatus | undefined): boolean {
   return status !== undefined && status.consecutiveFailures >= WARN_AFTER_FAILURES && status.failingSince !== null;
 }
 
+/** Every link leaves the brief in a new tab, without handing the opener or referrer to the target. */
+function externalLink(href: string, label: string): string {
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+}
+
 function renderItem(item: Item, checked: Set<string>): string {
   const doneClass = checked.has(item.link) ? ' class="done"' : "";
-  return `<li><div${doneClass} data-link="${escapeHtml(item.link)}"><a href="${escapeHtml(item.link)}">${escapeHtml(item.title)}</a> <small>${escapeHtml(item.source)}</small><p>${escapeHtml(truncateAtWord(stripTags(item.description), MAX_DESCRIPTION_CHARS))}</p></div></li>`;
+  return `<li><div${doneClass} data-link="${escapeHtml(item.link)}">${externalLink(item.link, item.title)} <small>${escapeHtml(item.source)}</small><p>${escapeHtml(truncateAtWord(stripTags(item.description), MAX_DESCRIPTION_CHARS))}</p></div></li>`;
+}
+
+/** Podcasts read as one list: day, then "title (producer)" with the summary underneath. */
+function renderPodcasts(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
+  const names = new Set(sources.map((source) => source.name));
+  const recent = podcastItems(items.filter((item) => names.has(item.source)), now);
+  const warnings = sources
+    .filter((source) => isFailing(statuses[source.name]))
+    .map((source) => renderStatus(statuses[source.name], source.name))
+    .join("");
+  const days = new Map<string, Item[]>();
+  for (const item of recent) {
+    const day = (item.published as string).slice(0, 10);
+    days.set(day, [...(days.get(day) ?? []), item]);
+  }
+  const body = [...days.keys()]
+    .sort()
+    .reverse()
+    .map((day) => {
+      const rows = (days.get(day) as Item[]).map((item) => {
+        const doneClass = checked.has(item.link) ? ' class="done"' : "";
+        return `<li><div${doneClass} data-link="${escapeHtml(item.link)}">${externalLink(item.link, item.title)} <small>(${escapeHtml(item.source)})</small><p>${escapeHtml(truncateAtWord(stripTags(item.description), MAX_DESCRIPTION_CHARS))}</p></div></li>`;
+      });
+      return `<h4>${day}</h4><ul>\n${rows.join("\n")}\n</ul>`;
+    })
+    .join("\n");
+  return `${warnings}${body}`;
 }
 
 function formatUtc(iso: string): string {
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
-function renderStatus(status: SourceStatus | undefined): string {
+function renderStatus(status: SourceStatus | undefined, label?: string): string {
   const lastSuccess = status?.lastSuccess ?? null;
-  const updated = lastSuccess === null ? "Never updated" : `Updated ${formatUtc(lastSuccess)}`;
+  const updated = label !== undefined ? escapeHtml(label) : lastSuccess === null ? "Never updated" : `Updated ${formatUtc(lastSuccess)}`;
   const warning =
     status !== undefined && isFailing(status)
       ? ` <strong class="warning">Warning: failing since ${formatUtc(status.failingSince as string)} (${status.consecutiveFailures} failed fetches)</strong>`
@@ -90,6 +122,10 @@ function renderSource(name: string, items: Item[], status: SourceStatus | undefi
 /** Render stored items to an HTML page grouped by type, source, day. Pure. */
 export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
   const sections = TYPE_ORDER.map(({ type, heading }) => {
+    if (type === "podcast") {
+      const podcasts = renderPodcasts(items, sources.filter((source) => source.type === "podcast"), now, statuses, checked);
+      return podcasts === "" ? "" : `<section><h2>${heading}</h2>\n${podcasts}\n</section>`;
+    }
     const rendered = sources
       .filter((source) => source.type === type)
       .map((source) =>

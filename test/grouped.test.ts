@@ -62,9 +62,14 @@ test("page groups by type, then source, then day newest first, within a 3-day wi
   assert.match(html, /Pod Today/);
   assert.match(html, /Podcast blurb today/);
   assert.match(html, /href="https:\/\/example\.com\/pod-today"/);
-  // Ancient is outside the window but is among the latest three; Older is not.
+  // podcasts show everything from the past month, as "title (producer)" with the summary under it
   assert.match(html, /Pod Ancient/);
-  assert.doesNotMatch(html, /Pod Older/);
+  assert.match(html, /Pod Older/);
+  assert.match(html, /<\/a> <small>\(Some Pod\)<\/small><p>Podcast blurb today<\/p>/);
+  // every link opens in a new tab without opener or referrer
+  for (const anchor of html.match(/<a [^>]*>/g) ?? []) {
+    assert.match(anchor, /target="_blank" rel="noopener noreferrer"/);
+  }
 
   const at = (needle: string): number => {
     const index = html.indexOf(needle);
@@ -77,4 +82,20 @@ test("page groups by type, then source, then day newest first, within a 3-day wi
   // newest day first within a source
   assert.ok(at("2026-11-07") < at("2026-11-06"));
   assert.ok(at("Pod Today") < at("Pod Yesterday"));
+});
+
+test("podcasts older than a month are not shown", async () => {
+  const pod = await serveFixture("test/fixtures/podcast.xml");
+  const server = await startReady({
+    sources: [{ name: "Some Pod", type: "podcast" as const, url: pod.url }],
+    dataFile: tempStore(),
+    port: 0,
+    now: () => new Date(NOW.getTime() + 40 * 24 * 60 * 60 * 1000),
+  });
+  const html = await (await fetch(server.url)).text().finally(async () => {
+    await server.close();
+    await pod.close();
+  });
+  assert.doesNotMatch(html, /Pod Today/);
+  assert.doesNotMatch(html, /Pod Older/);
 });

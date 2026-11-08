@@ -36,7 +36,7 @@ function checkedLinks(dataFile: string): string[] {
 async function pageFor(body: string, name: string): Promise<string> {
   const feed = await serveFeed(body);
   const server = await startReady({
-    sources: [{ name, type: "podcast", url: feed.url }],
+    sources: [{ name, type: "newsletter", url: feed.url }],
     dataFile: tempStore(),
     port: 0,
     now: () => NOW,
@@ -69,7 +69,7 @@ test("items matching both rules are shown once", async () => {
 test("the store keeps a source's displayed items plus a buffer of its latest 20, and no more", async () => {
   const dataFile = tempStore();
   const feed = await serveFeed(feedXml("Old", Array.from({ length: 60 }, (_, i) => (5 + i) * DAY)));
-  const sources = [{ name: "Backlog", type: "podcast" as const, url: feed.url }];
+  const sources = [{ name: "Backlog", type: "newsletter" as const, url: feed.url }];
   const server = await startReady({ sources, dataFile, port: 0, now: () => NOW });
   try {
     assert.equal(storedLinks(dataFile, "Backlog").length, 20);
@@ -89,7 +89,7 @@ test("check-off survives for kept items and is discarded for pruned ones", async
   const dataFile = tempStore();
   const original = feedXml("Ep", Array.from({ length: 20 }, (_, i) => (4 + i) * DAY));
   const feed = await serveFeed(original);
-  const sources = [{ name: "Weekly", type: "podcast" as const, url: feed.url }];
+  const sources = [{ name: "Weekly", type: "newsletter" as const, url: feed.url }];
   const toggle = (url: string, n: number) =>
     fetch(`${url}toggle`, {
       method: "POST",

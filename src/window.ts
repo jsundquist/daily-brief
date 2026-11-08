@@ -9,6 +9,9 @@ export const LATEST_PER_SOURCE = 3;
 /** The store keeps this many of a source's latest items (more if the page shows more). */
 export const BUFFER_PER_SOURCE = 20;
 
+/** Podcasts show everything from this long ago until now, and nothing older. */
+export const PODCAST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
 function newestFirst(a: Item, b: Item): number {
   return (b.published ?? "").localeCompare(a.published ?? "");
 }
@@ -25,4 +28,12 @@ export function keptItems(sourceItems: Item[], now: Date): Item[] {
   const shown = new Set(displayedItems(sourceItems, now));
   const newest = [...sourceItems].sort(newestFirst).slice(0, BUFFER_PER_SOURCE);
   return sourceItems.filter((item) => shown.has(item) || newest.includes(item));
+}
+
+/** The podcast items shown: published within the last month, newest first. */
+export function podcastItems(sourceItems: Item[], now: Date): Item[] {
+  const cutoff = new Date(now.getTime() - PODCAST_WINDOW_MS).toISOString();
+  return sourceItems
+    .filter((item) => item.published !== null && item.published >= cutoff && isHttpUrl(item.link))
+    .sort(newestFirst);
 }
