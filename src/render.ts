@@ -1,3 +1,4 @@
+import type { ArticleFormat } from "./articles.ts";
 import type { Item } from "./feed.ts";
 import { displayedItems, podcastItems } from "./window.ts";
 import type { SourceStatus } from "./store.ts";
@@ -10,6 +11,8 @@ export interface Source {
   url: string;
   /** Keep at most this many items from the feed (in feed order). */
   cap?: number;
+  /** Split each issue of this newsletter into its individual articles. */
+  articles?: ArticleFormat;
 }
 
 /** A source shows a warning after this many consecutive failed fetches. */

@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { cooperpressArticles, tldrArticles, type ArticleFormat } from "./articles.ts";
 
 export interface Item {
   title: string;
@@ -95,11 +96,62 @@ export function parseFeed(xml: string, source: string): Item[] {
   return items;
 }
 
-export async function fetchFeed(url: string, source: string, cap?: number, timeoutMs = 15_000): Promise<Item[]> {
+/** A TLDR feed lists one page per day; only the newest few pages are fetched on each refresh. */
+const TLDR_ISSUES_PER_REFRESH = 3;
+
+async function fetchText(url: string, timeoutMs: number): Promise<string> {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!response.ok) {
     throw new Error(`Feed ${url} responded ${response.status}`);
   }
-  const items = parseFeed(await response.text(), source);
+  return response.text();
+}
+
+/** Retry a page that fails (TLDR throttles at random): up to 3 tries, a growing pause between them. */
+async function fetchTextWithRetry(url: string, timeoutMs: number, pauseMs = 1000): Promise<string> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchText(url, timeoutMs);
+    } catch (error) {
+      if (attempt === 3) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, pauseMs * attempt));
+    }
+  }
+}
+
+export async function fetchFeed(
+  url: string,
+  source: string,
+  cap?: number,
+  timeoutMs = 15_000,
+  articles?: ArticleFormat,
+): Promise<Item[]> {
+  const items = parseFeed(await fetchText(url, timeoutMs), source);
+  if (articles === "cooperpress") {
+    return items.flatMap(cooperpressArticles);
+  }
+  if (articles === "tldr") {
+    const issues = items
+      .sort((a, b) => (b.published ?? "").localeCompare(a.published ?? ""))
+      .slice(0, TLDR_ISSUES_PER_REFRESH);
+    // One page at a time: TLDR answers a burst of parallel requests with errors.
+    const found: Item[] = [];
+    let lastError: unknown = null;
+    let fetched = 0;
+    for (const issue of issues) {
+      try {
+        found.push(...tldrArticles(await fetchTextWithRetry(issue.link, timeoutMs), issue));
+        fetched += 1;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (issues.length > 0 && fetched === 0) {
+      throw new Error(`No issue page of ${source} could be fetched`, { cause: lastError });
+    }
+    return found;
+  }
   return cap === undefined ? items : items.slice(0, cap);
 }

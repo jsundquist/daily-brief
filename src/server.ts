@@ -59,8 +59,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   /** Fetch one source. A failure is recorded and never propagates to the others. */
   async function refreshSource(source: Source): Promise<void> {
     try {
-      const items = await fetchFeed(source.url, source.name, source.cap, options.fetchTimeoutMs);
-      if (source.cap === undefined) {
+      const items = await fetchFeed(source.url, source.name, source.cap, options.fetchTimeoutMs, source.articles);
+      if (source.cap === undefined && source.articles === undefined) {
         store.upsertItems(items);
       } else {
         store.replaceSourceItems(source.name, items);
