@@ -68,7 +68,7 @@ test("page groups by type, then source, then day newest first, within a 3-day wi
   assert.doesNotMatch(html, /Pod Older/);
   assert.match(html, /<\/a> <small>\(Some Pod\)<\/small><p>Podcast blurb today<\/p>/);
   // every link opens in a new tab without opener or referrer
-  for (const anchor of html.match(/<a [^>]*>/g) ?? []) {
+  for (const anchor of html.match(/<a href="http[^>]*>/g) ?? []) {
     assert.match(anchor, /target="_blank" rel="noopener noreferrer"/);
   }
 

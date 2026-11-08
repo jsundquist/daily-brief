@@ -90,6 +90,12 @@ function renderDayList(items: Item[], sources: Source[], statuses: Record<string
   return `${warnings}${body}`;
 }
 
+/** A top-level type section: collapsible, colour-coded by type, with an anchor for the jump bar. */
+function typeSection(type: SourceType, heading: string, body: string): string {
+  const count = (body.match(/<li>/g) ?? []).length;
+  return `<section class="type type-${type}" id="${type}"><details open data-key="${type}"><summary><h2>${heading}</h2><span class="count">${count}</span></summary>\n${body}\n</details></section>`;
+}
+
 function formatUtc(iso: string): string {
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
@@ -129,7 +135,7 @@ export function renderPage(items: Item[], sources: Source[], now: Date, statuses
       const ofType = sources.filter((source) => source.type === type);
       const names = new Set(ofType.map((source) => source.name));
       const list = renderDayList(recentItems(items.filter((item) => names.has(item.source)), now), ofType, statuses, checked);
-      return list === "" ? "" : `<section><h2>${heading}</h2>\n${list}\n</section>`;
+      return list === "" ? "" : typeSection(type, heading, list);
     }
     if (type === "newsletter") {
       const letters = sources.filter((source) => source.type === type);
@@ -145,7 +151,7 @@ export function renderPage(items: Item[], sources: Source[], now: Date, statuses
         return list === "" ? "" : `<section><h3>${title}</h3>\n${list}\n</section>`;
       });
       const body = groups.filter((group) => group !== "").join("\n");
-      return body === "" ? "" : `<section><h2>${heading}</h2>\n${body}\n</section>`;
+      return body === "" ? "" : typeSection(type, heading, body);
     }
     const rendered = sources
       .filter((source) => source.type === type)
@@ -157,12 +163,48 @@ export function renderPage(items: Item[], sources: Source[], now: Date, statuses
           checked,
         ),
       );
-    return rendered.length === 0 ? "" : `<section><h2>${heading}</h2>\n${rendered.join("\n")}\n</section>`;
+    return rendered.length === 0 ? "" : typeSection(type, heading, rendered.join("\n"));
   }).filter((section) => section !== "");
+  const nav = TYPE_ORDER.filter(({ heading }) => sections.some((section) => section.includes(`<h2>${heading}</h2>`)))
+    .map(({ type, heading }) => `<a class="type-${type}" href="#${type}">${heading}</a>`)
+    .join("");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Daily Brief</title>
-<style>div.done { text-decoration: line-through; opacity: 0.6; } div[data-link] { cursor: pointer; }</style></head>
-<body><h1>Daily Brief</h1>
+<style>
+:root { --bg: #f4f5f7; --card: #ffffff; --text: #1d2330; --muted: #6a7385; --line: #e3e6ec; --link: #1a4fd6; --podcast: #7c3aed; --youtube: #dc2626; --newsletter: #0891b2; --news: #ea7a0b; }
+@media (prefers-color-scheme: dark) { :root { --bg: #14171f; --card: #1d212c; --text: #e6e9f0; --muted: #98a1b5; --line: #2b3040; --link: #8fb0ff; --podcast: #a78bfa; --youtube: #f87171; --newsletter: #22d3ee; --news: #fb9f3c; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+header.bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 18px; padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--line); }
+header.bar h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+header.bar nav { display: flex; gap: 8px; flex-wrap: wrap; }
+header.bar nav a { padding: 3px 11px; border-radius: 999px; font-size: 13px; font-weight: 600; text-decoration: none; color: #fff; }
+nav a.type-podcast { background: var(--podcast); } nav a.type-youtube { background: var(--youtube); } nav a.type-newsletter { background: var(--newsletter); } nav a.type-news { background: var(--news); }
+#content { max-width: 920px; margin: 0 auto; padding: 20px 24px 60px; }
+section.type { margin: 0 0 22px; background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 10px; scroll-margin-top: 60px; }
+.type-podcast { --accent: var(--podcast); } .type-youtube { --accent: var(--youtube); } .type-newsletter { --accent: var(--newsletter); } .type-news { --accent: var(--news); }
+summary { display: flex; align-items: center; gap: 10px; padding: 12px 18px; cursor: pointer; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: "\\25B8"; color: var(--accent); transition: transform .12s; }
+details[open] > summary::before { transform: rotate(90deg); }
+h2 { margin: 0; font-size: 19px; color: var(--accent); }
+.count { margin-left: auto; padding: 1px 10px; border-radius: 999px; background: var(--bg); color: var(--muted); font-size: 12px; font-weight: 600; }
+section.type section { padding: 0 18px 6px; }
+section.type section > h3 { margin: 12px 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+h4 { position: sticky; top: 49px; z-index: 1; margin: 0; padding: 6px 18px; background: color-mix(in srgb, var(--accent) 10%, var(--card)); color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .06em; border-top: 1px solid var(--line); }
+section.type section h4 { margin: 0 -18px; }
+ul { list-style: none; margin: 0; padding: 0; }
+li { border-top: 1px solid var(--line); } li:first-child { border-top: 0; }
+div[data-link] { padding: 9px 18px; cursor: pointer; } section.type section div[data-link] { margin: 0 -18px; }
+div[data-link]:hover { background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+div[data-link] a { font-weight: 600; color: var(--link); text-decoration: none; } div[data-link] a:hover { text-decoration: underline; }
+div[data-link] small { color: var(--accent); font-weight: 600; font-size: 12px; margin-left: 4px; }
+div[data-link] p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+div.done { opacity: .45; } div.done a, div.done p { text-decoration: line-through; }
+p small { color: var(--muted) !important; font-weight: 400 !important; }
+.warning { color: #b91c1c; }
+</style></head>
+<body><header class="bar"><h1>Daily Brief</h1><nav>${nav}</nav></header>
 <div id="content">
 ${sections.join("\n")}
 </div>
@@ -186,6 +228,24 @@ document.addEventListener("click", (event) => {
     }
   });
 });
+function restoreCollapsed() {
+  try {
+    for (const d of document.querySelectorAll("details[data-key]")) {
+      if (localStorage.getItem("collapsed:" + d.getAttribute("data-key")) === "1") {
+        d.open = false;
+      }
+    }
+  } catch {}
+}
+document.addEventListener("toggle", (event) => {
+  const d = event.target;
+  if (d instanceof HTMLDetailsElement && d.hasAttribute("data-key")) {
+    try {
+      localStorage.setItem("collapsed:" + d.getAttribute("data-key"), d.open ? "0" : "1");
+    } catch {}
+  }
+}, true);
+restoreCollapsed();
 let version = null;
 async function poll() {
   try {
@@ -196,6 +256,7 @@ async function poll() {
       const current = document.getElementById("content");
       if (fresh && current) {
         current.innerHTML = fresh.innerHTML;
+        restoreCollapsed();
       }
     }
     version = next;
