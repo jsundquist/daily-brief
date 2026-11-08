@@ -99,3 +99,26 @@ test("podcasts older than a month are not shown", async () => {
   assert.doesNotMatch(html, /Pod Today/);
   assert.doesNotMatch(html, /Pod Older/);
 });
+
+test("newsletter articles from every newsletter are listed together by day as title (source)", async () => {
+  const one = await serveFixture("test/fixtures/letter.xml");
+  const two = await serveFixture("test/fixtures/letter.xml");
+  const server = await startReady({
+    sources: [
+      { name: "Letter A", type: "newsletter" as const, url: one.url },
+      { name: "Letter B", type: "newsletter" as const, url: two.url },
+    ],
+    dataFile: tempStore(),
+    port: 0,
+    now: () => NOW,
+  });
+  const html = await (await fetch(server.url)).text().finally(async () => {
+    await server.close();
+    await one.close();
+    await two.close();
+  });
+  assert.doesNotMatch(html, /<h3>Letter A<\/h3>/);
+  assert.match(html, /<small>\(Letter A\)<\/small>/);
+  assert.match(html, /<small>\(Letter B\)<\/small>/);
+  assert.equal(html.match(/<h4>2026-11-06<\/h4>/g)?.length, 1);
+});

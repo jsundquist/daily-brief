@@ -63,16 +63,14 @@ function renderItem(item: Item, checked: Set<string>): string {
   return `<li><div${doneClass} data-link="${escapeHtml(item.link)}">${externalLink(item.link, item.title)} <small>${escapeHtml(item.source)}</small><p>${escapeHtml(truncateAtWord(stripTags(item.description), MAX_DESCRIPTION_CHARS))}</p></div></li>`;
 }
 
-/** Podcasts read as one list: day, then "title (producer)" with the summary underneath. */
-function renderPodcasts(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
-  const names = new Set(sources.map((source) => source.name));
-  const recent = podcastItems(items.filter((item) => names.has(item.source)), now);
+/** Items from several sources as one list: day, then "title (source)" with the summary underneath. */
+function renderDayList(items: Item[], sources: Source[], statuses: Record<string, SourceStatus>, checked: Set<string>): string {
   const warnings = sources
     .filter((source) => isFailing(statuses[source.name]))
     .map((source) => renderStatus(statuses[source.name], source.name))
     .join("");
   const days = new Map<string, Item[]>();
-  for (const item of recent) {
+  for (const item of items) {
     const day = (item.published as string).slice(0, 10);
     days.set(day, [...(days.get(day) ?? []), item]);
   }
@@ -125,9 +123,15 @@ function renderSource(name: string, items: Item[], status: SourceStatus | undefi
 /** Render stored items to an HTML page grouped by type, source, day. Pure. */
 export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
   const sections = TYPE_ORDER.map(({ type, heading }) => {
-    if (type === "podcast") {
-      const podcasts = renderPodcasts(items, sources.filter((source) => source.type === "podcast"), now, statuses, checked);
-      return podcasts === "" ? "" : `<section><h2>${heading}</h2>\n${podcasts}\n</section>`;
+    if (type === "podcast" || type === "newsletter") {
+      const ofType = sources.filter((source) => source.type === type);
+      const names = new Set(ofType.map((source) => source.name));
+      const shown =
+        type === "podcast"
+          ? podcastItems(items.filter((item) => names.has(item.source)), now)
+          : ofType.flatMap((source) => displayedItems(items.filter((item) => item.source === source.name), now));
+      const list = renderDayList(shown, ofType, statuses, checked);
+      return list === "" ? "" : `<section><h2>${heading}</h2>\n${list}\n</section>`;
     }
     const rendered = sources
       .filter((source) => source.type === type)

@@ -18,10 +18,10 @@ test("every configured source shows its section and Updated line, even with no i
   never.state.hang = true;
   const server = await startReady({
     sources: [
-      { name: "Zed Empty", type: "newsletter" as const, url: empty.url },
-      { name: "Alpha Letter", type: "newsletter" as const, url: withItems.url },
+      { name: "Zed Empty", type: "youtube" as const, url: empty.url },
+      { name: "Alpha Letter", type: "youtube" as const, url: withItems.url },
       { name: "Hung News", type: "news" as const, url: never.url },
-      { name: "Aaa Pod", type: "newsletter" as const, url: old.url },
+      { name: "Aaa Pod", type: "youtube" as const, url: old.url },
     ],
     dataFile: tempStore(),
     port: 0,
@@ -38,7 +38,7 @@ test("every configured source shows its section and Updated line, even with no i
     assert.doesNotMatch(sectionOf(html, "Hung News"), /class="warning"/);
     // type order first, then configured order within a type
     const at = (needle: string) => html.indexOf(needle);
-    assert.ok(at("<h2>Newsletters</h2>") < at("<h3>Zed Empty</h3>"));
+    assert.ok(at("<h2>YouTube</h2>") < at("<h3>Zed Empty</h3>"));
     assert.ok(at("<h3>Zed Empty</h3>") < at("<h3>Alpha Letter</h3>"));
     assert.ok(at("<h3>Alpha Letter</h3>") < at("<h3>Aaa Pod</h3>"));
     assert.ok(at("<h3>Aaa Pod</h3>") < at("<h2>News sites</h2>"));

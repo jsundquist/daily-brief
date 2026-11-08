@@ -24,7 +24,7 @@ async function setup() {
   const server = await startReady({
     sources: [
       { name: "Flaky", type: "news" as const, url: flaky.url },
-      { name: "Good", type: "newsletter" as const, url: good.url },
+      { name: "Good", type: "youtube" as const, url: good.url },
     ],
     dataFile: tempStore(),
     port: 0,
