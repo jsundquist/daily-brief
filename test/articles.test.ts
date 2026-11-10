@@ -65,3 +65,26 @@ test("a TLDR issue is fetched from its page and shown as its articles, without s
   assert.doesNotMatch(page, /Buy things/);
   assert.doesNotMatch(page, /Headlines/);
 });
+
+test("sponsor entries are dropped and HTML entities in text are decoded", async () => {
+  const feed = await serveFeed(
+    `<?xml version="1.0"?><rss version="2.0"><channel><title>t</title>
+<item><title>Sponsor: Flox</title><link>https://example.com/ad</link><pubDate>Fri, 06 Nov 2026 10:00:00 +0000</pubDate><description>buy</description></item>
+<item><title>Real Tool</title><link>https://example.com/tool</link><pubDate>Fri, 06 Nov 2026 09:00:00 +0000</pubDate><description>You&amp;apos;ve got a tool &amp;amp; it works</description></item>
+</channel></rss>`,
+  );
+  const server = await startReady({
+    sources: [{ name: "Tools", type: "news" as const, url: feed.url }],
+    dataFile: tempStore(),
+    port: 0,
+    now: () => NOW,
+  });
+  const page = await (await fetch(server.url)).text().finally(async () => {
+    await server.close();
+    await feed.close();
+  });
+  assert.doesNotMatch(page, /Flox/);
+  assert.match(page, /Real Tool/);
+  assert.doesNotMatch(page, /&amp;apos;|&apos;/);
+  assert.match(page, /You(&#39;|')ve got a tool &amp; it works/);
+});

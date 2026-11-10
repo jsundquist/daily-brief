@@ -1,4 +1,4 @@
-import type { ArticleFormat } from "./articles.ts";
+import { decodeEntities, type ArticleFormat } from "./articles.ts";
 import type { Item } from "./feed.ts";
 import { displayedItems, latestDayItems, recentItems } from "./window.ts";
 import type { SourceStatus } from "./store.ts";
@@ -36,7 +36,7 @@ function escapeHtml(value: string): string {
 }
 
 function stripTags(value: string): string {
-  return value.replace(/<[^>]*>/g, "");
+  return decodeEntities(value.replace(/<[^>]*>/g, ""));
 }
 
 /** Descriptions are shown at about this many characters; the store keeps the full text. */
@@ -57,7 +57,7 @@ function isFailing(status: SourceStatus | undefined): boolean {
 
 /** Every link leaves the brief in a new tab, without handing the opener or referrer to the target. */
 function externalLink(href: string, label: string): string {
-  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(decodeEntities(label))}</a>`;
 }
 
 function renderItem(item: Item, checked: Set<string>): string {

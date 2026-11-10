@@ -44,6 +44,11 @@ export function isHttpUrl(value: string): boolean {
   }
 }
 
+/** Paid placements ("Sponsor: Acme") are not content. */
+function isSponsored(item: Item): boolean {
+  return /^sponsor(ed)?\s*:/i.test(item.title);
+}
+
 function atomLink(value: unknown): string {
   const links = toArray(value as Record<string, string> | Record<string, string>[] | undefined);
   const alternate = links.find((l) => l["@_rel"] === undefined || l["@_rel"] === "alternate");
@@ -66,7 +71,7 @@ function parseAtom(feed: { entry?: unknown }, source: string): Item[] {
       source,
     });
   }
-  return items;
+  return items.filter((item) => !isSponsored(item));
 }
 
 /** Parse RSS 2.0 or Atom XML into normalised items. Throws on invalid input. */
@@ -93,7 +98,7 @@ export function parseFeed(xml: string, source: string): Item[] {
       source,
     });
   }
-  return items;
+  return items.filter((item) => !isSponsored(item));
 }
 
 /** A TLDR feed lists one page per day; only the newest few pages are fetched on each refresh. */
