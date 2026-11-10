@@ -8,8 +8,16 @@ export const sources: Source[] = [
   { name: "Practical AI", type: "podcast", url: "https://changelog.com/practicalai/feed" },
   { name: "Ship It!", type: "podcast", url: "https://changelog.com/shipit/feed" },
   { name: "JavaScript Jabber", type: "podcast", url: "https://www.spreaker.com/show/6102064/episodes/feed" },
+  { name: "Software Engineering Daily", type: "podcast", url: "https://softwareengineeringdaily.com/feed/podcast/" },
+  { name: "Arrested DevOps", type: "podcast", url: "https://www.arresteddevops.com/episode/index.xml" },
+  { name: "NerdOut@Spotify", type: "podcast", url: "https://anchor.fm/s/805682b0/podcast/rss" },
   { name: "Latent Space (podcast)", type: "podcast", url: "https://podcast.latent.space/feed.xml" },
   { name: "Kubernetes Podcast from Google", type: "podcast", url: "https://kubernetespodcast.com/feeds/audio.xml" },
+  {
+    name: "Spotify R&D",
+    type: "youtube",
+    url: "https://www.youtube.com/feeds/videos.xml?channel_id=UCHBvqSwbfAf5Vx1jrwkG43Q",
+  },
   {
     name: "CNCF",
     type: "youtube",
@@ -28,5 +36,6 @@ export const sources: Source[] = [
   { name: "The Pragmatic Engineer", type: "newsletter", url: "https://newsletter.pragmaticengineer.com/feed", cadence: "weekly" },
   { name: "Latent Space (newsletter)", type: "newsletter", url: "https://www.latent.space/feed", cadence: "weekly" },
   { name: "Hacker News", type: "news", url: "https://news.ycombinator.com/rss", cap: 10 },
+  { name: "Open Source Projects", type: "news", url: "https://www.opensourceprojects.dev/rss" },
   { name: "InfoQ", type: "news", url: "https://feed.infoq.com" },
 ];
