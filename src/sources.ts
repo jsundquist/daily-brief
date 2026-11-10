@@ -35,7 +35,6 @@ export const sources: Source[] = [
   { name: "Console.dev", type: "newsletter", url: "https://console.dev/rss.xml", cadence: "weekly" },
   { name: "The Pragmatic Engineer", type: "newsletter", url: "https://newsletter.pragmaticengineer.com/feed", cadence: "weekly" },
   { name: "Latent Space (newsletter)", type: "newsletter", url: "https://www.latent.space/feed", cadence: "weekly" },
-  { name: "Hacker News", type: "news", url: "https://news.ycombinator.com/rss", cap: 10 },
   { name: "Open Source Projects", type: "news", url: "https://www.opensourceprojects.dev/rss" },
   { name: "InfoQ", type: "news", url: "https://feed.infoq.com" },
 ];

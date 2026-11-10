@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fetchFeed } from "./feed.ts";
+import { briefItems } from "./brief.ts";
 import { renderPage, type Source } from "./render.ts";
 import { Store } from "./store.ts";
 
@@ -116,6 +117,17 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     if (req.method === "GET" && req.url === "/") {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       res.end(render());
+      return;
+    }
+    if (req.method === "GET" && req.url === "/brief.json") {
+      if (!isLocalRequest(req)) {
+        res.writeHead(403);
+        res.end("Forbidden");
+        return;
+      }
+      const at = now();
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ generatedAt: at.toISOString(), items: briefItems(store.listItems(), options.sources, at, store.checkedLinks()) }));
       return;
     }
     if (req.method === "GET" && req.url === "/version") {

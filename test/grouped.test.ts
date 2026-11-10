@@ -154,3 +154,44 @@ test("daily newsletters show 4 days; weekly newsletters show only the last day t
   assert.doesNotMatch(html, /Daily Old/);
   assert.doesNotMatch(html, /Weekly Prior/);
 });
+
+test("/brief.json lists what the page shows, with summaries and check-off state", async () => {
+  const pod = await serveFixture("test/fixtures/podcast.xml");
+  const letter = await serveFixture("test/fixtures/letter.xml");
+  const server = await startReady({
+    sources: [
+      { name: "Some Pod", type: "podcast" as const, url: pod.url },
+      { name: "Some Letter", type: "newsletter" as const, url: letter.url, cadence: "weekly" as const },
+    ],
+    dataFile: tempStore(),
+    port: 0,
+    now: () => NOW,
+  });
+  try {
+    await fetch(`${server.url}toggle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ link: "https://example.com/pod-today" }),
+    });
+    const response = await fetch(`${server.url}brief.json`);
+    assert.match(response.headers.get("content-type") ?? "", /application\/json/);
+    const brief = (await response.json()) as { generatedAt: string; items: Record<string, unknown>[] };
+    const titles = brief.items.map((item) => item.title);
+    assert.deepEqual(titles, ["Pod Today", "Pod Yesterday", "Letter Issue"]);
+    assert.deepEqual(brief.items[0], {
+      type: "podcast",
+      source: "Some Pod",
+      title: "Pod Today",
+      link: "https://example.com/pod-today",
+      published: "2026-11-07T08:00:00.000Z",
+      summary: "Podcast blurb today",
+      done: true,
+    });
+    assert.equal(brief.items[1]?.done, false);
+    assert.equal(brief.items[2]?.cadence, "weekly");
+  } finally {
+    await server.close();
+    await pod.close();
+    await letter.close();
+  }
+});

@@ -1,6 +1,6 @@
 import { decodeEntities, type ArticleFormat } from "./articles.ts";
 import type { Item } from "./feed.ts";
-import { displayedItems, latestDayItems, recentItems } from "./window.ts";
+import { shownItems } from "./window.ts";
 import type { SourceStatus } from "./store.ts";
 
 export type SourceType = "podcast" | "youtube" | "newsletter" | "news";
@@ -53,6 +53,11 @@ function truncateAtWord(value: string, limit: number): string {
 
 function isFailing(status: SourceStatus | undefined): boolean {
   return status !== undefined && status.consecutiveFailures >= WARN_AFTER_FAILURES && status.failingSince !== null;
+}
+
+/** A feed description as plain text, shortened the way the page shows it. */
+export function summarize(description: string): string {
+  return truncateAtWord(stripTags(description), MAX_DESCRIPTION_CHARS);
 }
 
 /** Every link leaves the brief in a new tab, without handing the opener or referrer to the target. */
@@ -131,38 +136,24 @@ function renderSource(name: string, items: Item[], status: SourceStatus | undefi
 /** Render stored items to an HTML page grouped by type, source, day. Pure. */
 export function renderPage(items: Item[], sources: Source[], now: Date, statuses: Record<string, SourceStatus>, checked: Set<string>): string {
   const sections = TYPE_ORDER.map(({ type, heading }) => {
+    const ofType = sources.filter((source) => source.type === type);
+    const shownOf = (source: Source): Item[] => shownItems(items.filter((item) => item.source === source.name), source, now);
     if (type === "podcast") {
-      const ofType = sources.filter((source) => source.type === type);
-      const names = new Set(ofType.map((source) => source.name));
-      const list = renderDayList(recentItems(items.filter((item) => names.has(item.source)), now), ofType, statuses, checked);
+      const list = renderDayList(ofType.flatMap(shownOf), ofType, statuses, checked);
       return list === "" ? "" : typeSection(type, heading, list);
     }
     if (type === "newsletter") {
-      const letters = sources.filter((source) => source.type === type);
       const groups = [
-        { title: "Daily", ofCadence: letters.filter((source) => source.cadence !== "weekly") },
-        { title: "Weekly", ofCadence: letters.filter((source) => source.cadence === "weekly") },
+        { title: "Daily", ofCadence: ofType.filter((source) => source.cadence !== "weekly") },
+        { title: "Weekly", ofCadence: ofType.filter((source) => source.cadence === "weekly") },
       ].map(({ title, ofCadence }) => {
-        const shown = ofCadence.flatMap((source) => {
-          const own = items.filter((item) => item.source === source.name);
-          return title === "Weekly" ? latestDayItems(own) : recentItems(own, now);
-        });
-        const list = renderDayList(shown, ofCadence, statuses, checked);
+        const list = renderDayList(ofCadence.flatMap(shownOf), ofCadence, statuses, checked);
         return list === "" ? "" : `<section><h3>${title}</h3>\n${list}\n</section>`;
       });
       const body = groups.filter((group) => group !== "").join("\n");
       return body === "" ? "" : typeSection(type, heading, body);
     }
-    const rendered = sources
-      .filter((source) => source.type === type)
-      .map((source) =>
-        renderSource(
-          source.name,
-          displayedItems(items.filter((item) => item.source === source.name), now),
-          statuses[source.name],
-          checked,
-        ),
-      );
+    const rendered = ofType.map((source) => renderSource(source.name, shownOf(source), statuses[source.name], checked));
     return rendered.length === 0 ? "" : typeSection(type, heading, rendered.join("\n"));
   }).filter((section) => section !== "");
   const nav = TYPE_ORDER.filter(({ heading }) => sections.some((section) => section.includes(`<h2>${heading}</h2>`)))

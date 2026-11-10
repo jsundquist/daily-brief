@@ -25,15 +25,13 @@ test("the seeded config lists the verified feeds and none of the dropped sources
     "JavaScript Weekly",
     "Console.dev",
     "The Pragmatic Engineer",
-    "Hacker News",
     "InfoQ",
   ]) {
     assert.ok(names.includes(expected), `missing ${expected}`);
   }
-  for (const dropped of ["Python Weekly", "DevOps Weekly", "KubeWeekly", "The Batch", "Test & Code"]) {
+  for (const dropped of ["Hacker News", "Python Weekly", "DevOps Weekly", "KubeWeekly", "The Batch", "Test & Code"]) {
     assert.ok(!names.includes(dropped), `${dropped} should be absent`);
   }
   assert.equal(new Set(names).size, names.length);
-  assert.equal(sources.find((source) => source.name === "Hacker News")?.cap, 10);
   assert.equal(sources.find((source) => source.name === "CNCF")?.type, "youtube");
 });

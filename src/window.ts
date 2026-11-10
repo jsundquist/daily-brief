@@ -1,4 +1,5 @@
 import { isHttpUrl, type Item } from "./feed.ts";
+import type { Source } from "./render.ts";
 
 /** Every item from this long ago until now is shown. */
 export const WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
@@ -57,4 +58,15 @@ export function latestDayItems(sourceItems: Item[]): Item[] {
   const showable = sourceItems.filter((item) => item.published !== null && isHttpUrl(item.link)).sort(newestFirst);
   const day = showable[0]?.published?.slice(0, 10);
   return showable.filter((item) => (item.published as string).slice(0, 10) === day);
+}
+
+/** The items of ONE source the page and the brief show, by the source's type and cadence. */
+export function shownItems(sourceItems: Item[], source: Source, now: Date): Item[] {
+  if (source.type === "podcast") {
+    return recentItems(sourceItems, now);
+  }
+  if (source.type === "newsletter") {
+    return source.cadence === "weekly" ? latestDayItems(sourceItems) : recentItems(sourceItems, now);
+  }
+  return displayedItems(sourceItems, now);
 }
