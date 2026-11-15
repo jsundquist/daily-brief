@@ -5,7 +5,19 @@ description: Give the user their daily brief of the most interesting things to r
 
 # Daily brief
 
-The user runs a local aggregator (the `daily-brief` project) that fetches their feeds hourly. Your job is to read what it holds and tell them what is worth their time, by topic.
+The user runs a local aggregator (the `daily-brief` project). A scheduled job writes a brief at 06:00 each day: a local model has already read the feeds against the user's profile. Your job is to hand them that brief.
+
+## Stored brief (default)
+
+1. Call the `get_brief` tool of the `daily-brief` MCP server. It returns the latest brief as Markdown: an executive summary, "Across your sources", "Worth your time" by topic, and "Maybe of interest".
+2. Present it as it is: the summary first, then the sections. Do not re-pick, re-rank or add items; every link comes from the tool result.
+3. If the brief's date is not today, say so up front, and say the 06:00 job did not run (`npm run brief` in the daily-brief project makes one now). Offer the live brief below.
+4. If the tool says no brief exists, or the MCP server is not available, use the live brief below.
+5. Offer to open or discuss any entry. Fetch an article only when asked.
+
+## Live brief (fallback, when no stored brief is available)
+
+This is the older flow: you judge the items yourself.
 
 ## Steps
 
