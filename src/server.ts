@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
-import { fetchFeed } from "./feed.ts";
 import { briefItems } from "./brief.ts";
+import { refreshAll } from "./refresh.ts";
 import { renderPage, type Source } from "./render.ts";
 import { Store } from "./store.ts";
 
@@ -43,9 +43,6 @@ function readBody(req: IncomingMessage, limit: number): Promise<string> {
   });
 }
 
-/** At most this many feeds are fetched at the same time. */
-const MAX_CONCURRENT_FETCHES = 5;
-
 export interface RunningServer {
   url: string;
   /** Resolves when the startup refresh has finished (it runs in the background). */
@@ -57,33 +54,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   const now = options.now ?? (() => new Date());
   const store = new Store(options.dataFile);
 
-  /** Fetch one source. A failure is recorded and never propagates to the others. */
-  async function refreshSource(source: Source): Promise<void> {
-    try {
-      const items = await fetchFeed(source.url, source.name, source.cap, options.fetchTimeoutMs, source.articles);
-      if (source.cap === undefined && source.articles === undefined) {
-        store.upsertItems(items);
-      } else {
-        store.replaceSourceItems(source.name, items);
-      }
-      store.recordSuccess(source.name, now().toISOString());
-    } catch (error) {
-      store.recordFailure(source.name, now().toISOString());
-      console.error(`Failed to fetch ${source.name}:`, error);
-    }
-  }
-
-  /** Fetch every source once, a few at a time. */
   async function runRefresh(): Promise<void> {
     lastRefresh = now().getTime();
-    const queue = [...options.sources];
-    const worker = async (): Promise<void> => {
-      for (let source = queue.shift(); source !== undefined; source = queue.shift()) {
-        await refreshSource(source);
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_FETCHES, queue.length) }, worker));
-    store.prune(now());
+    await refreshAll({ sources: options.sources, store, now, fetchTimeoutMs: options.fetchTimeoutMs });
   }
 
   let lastRefresh = 0;
