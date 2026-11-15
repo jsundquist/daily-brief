@@ -16,3 +16,7 @@ v1 ingests from **RSS/Atom feeds only**, for podcasts, newsletters, news sites a
 - Sources with no feed are dropped from v1: Python Weekly, DevOps Weekly, KubeWeekly, The Batch, Test & Code (whose domain also now redirects somewhere unrelated).
 - The user's newsletters are all free, so paywalled feed content is not a concern.
 - Gmail is not used.
+
+## Research
+
+Findings: [research/04-newsletter-ingestion.md](../research/04-newsletter-ingestion.md). Gist: prefer publisher RSS/Atom feeds, use a dedicated inbound address for paid or feed-less newsletters, treat Kill-the-Newsletter as a fallback, and do not scrape HTML archives (Substack and beehiiv ToS prohibit it).
