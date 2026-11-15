@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "daily-brief": {
+      "command": "node",
+      "args": ["src/mcp-cli.ts"]
+    }
+  }
+}
