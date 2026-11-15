@@ -10,4 +10,8 @@ For YouTube, podcasts, and newsletters, what text is obtainable without audio tr
 
 ## Resolution
 
-Not needed for v1: with no tiering, the brief needs only titles, descriptions and links. Findings stay on branch `research/transcript-availability`. Revisit if hot-trend detection turns out to need full text, or when tiering returns.
+Not needed for v1: with no tiering, the brief needs only titles, descriptions and links. Findings are kept in the research file below. Revisit if hot-trend detection turns out to need full text, or when tiering returns.
+
+## Research
+
+Findings: [research/03-transcript-availability.md](../research/03-transcript-availability.md)
