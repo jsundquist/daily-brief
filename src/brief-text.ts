@@ -1,13 +1,25 @@
 import type { StoredBrief } from "./briefs-db.ts";
-import type { BriefEntry } from "./summary.ts";
+import type { BriefEntry, SummaryPoint } from "./summary.ts";
 
 function line(entry: BriefEntry): string {
   return `- [${entry.title}](${entry.link}) (${entry.source}, ${entry.score}/5): ${entry.reason}`;
 }
 
+/** The headline links to the first item; any others follow as "also". */
+function point({ headline, why, links }: SummaryPoint): string {
+  const [first, ...rest] = links;
+  const also = rest.length > 0 ? ` Also: ${rest.map((link) => `[${link.source}](${link.link})`).join(", ")}.` : "";
+  return `- **[${headline}](${first.link})** (${first.source}): ${why}${also}`;
+}
+
 /** The brief as Markdown, for an agent to read out or a person to skim. */
 export function briefMarkdown({ brief, generatedAt, model }: StoredBrief): string {
-  const parts: string[] = [`# Daily brief for ${brief.date}`, "", brief.summary];
+  const parts: string[] = [`# Daily brief for ${brief.date}`];
+  if (brief.summaryPoints !== undefined && brief.summaryPoints.length > 0) {
+    parts.push("", "## Read these first", "", ...brief.summaryPoints.map(point));
+  } else {
+    parts.push("", brief.summary);
+  }
   if (brief.trends.length > 0) {
     parts.push("", "## Across your sources");
     for (const trend of brief.trends) {

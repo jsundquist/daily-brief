@@ -20,7 +20,7 @@ function pickAll(): Chat & { prompts: string[] } {
     const prompt = messages[1].content;
     prompts.push(prompt);
     if (prompt.startsWith("These are the items picked")) {
-      return JSON.stringify({ summary: "Summary.", trends: [] });
+      return JSON.stringify({ points: [{ headline: "Summary", why: "Read it.", ids: [0] }] });
     }
     const ids = [...prompt.matchAll(/^\[(\d+)\] /gm)].map((match) => Number(match[1]));
     return JSON.stringify({ items: ids.map((id) => ({ id, score: 5, topic: "Security", reason: "r" })) });

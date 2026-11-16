@@ -34,7 +34,13 @@ interface Scored {
 }
 
 const scores = (...items: Scored[]) => JSON.stringify({ items: items.map((i) => ({ topic: "Security", reason: "r", ...i })) });
-const summaryReply = (summary = "Big day.") => JSON.stringify({ summary });
+interface Point {
+  headline: string;
+  why: string;
+  ids: unknown[];
+}
+
+const summaryReply = (points: Point[] = [{ headline: "Big story", why: "Open it first.", ids: [0] }]) => JSON.stringify({ points });
 const run = (items: BriefItem[], chat: Chat, extra: Record<string, unknown> = {}) =>
   generateBrief({ items, profile: PROFILE, chat, date: "2026-11-15", ...extra });
 
@@ -45,7 +51,7 @@ test("titles and links come from the data, not from the model", async () => {
     { topic: "Security", entries: [{ title: "Title number 0 of the day", link: "https://example.com/0", source: "Source 0", reason: "npm worm", score: 5 }] },
   ]);
   assert.equal(brief.considered, 2);
-  assert.equal(brief.summary, "Big day.");
+  assert.equal(brief.summary, "Big story");
 });
 
 test("every score is recorded, including the ones left out, and a merged story scores under each of its links", async () => {
@@ -219,9 +225,48 @@ test("when nothing scores 3 or more there is nothing to summarise", async () => 
   assert.match(brief.summary, /Nothing stood out/);
 });
 
+test("summary points link to the picked items, with titles and links copied from the data", async () => {
+  const chat = scripted(scores({ id: 0, score: 5 }, { id: 1, score: 4 }), summaryReply([{ headline: "The worm", why: "Check your lockfile.", ids: [0, 1] }]));
+  const brief = await run([item(0), item(1)], chat);
+  assert.equal(brief.summary, "The worm");
+  assert.deepEqual(brief.summaryPoints, [
+    {
+      headline: "The worm",
+      why: "Check your lockfile.",
+      links: [
+        { title: "Title number 0 of the day", link: "https://example.com/0", source: "Source 0" },
+        { title: "Title number 1 of the day", link: "https://example.com/1", source: "Source 1" },
+      ],
+    },
+  ]);
+});
+
+test("summary points with unknown ids or no text are dropped, bad ids are filtered, and item-number markers are stripped", async () => {
+  const points = [
+    { headline: "Invented", why: "No such item.", ids: [99] },
+    { headline: "Real [0]", why: "Read it [0, 1].", ids: ["[0]", 99, 0] },
+    { headline: "", why: "No headline.", ids: [0] },
+  ];
+  const chat = scripted(scores({ id: 0, score: 5 }), summaryReply(points));
+  const brief = await run([item(0)], chat);
+  assert.deepEqual(brief.summaryPoints?.map((point) => [point.headline, point.why, point.links.length]), [["Real", "Read it.", 1]]);
+});
+
+test("a summary reply with no usable points is retried", async () => {
+  const chat = scripted(scores({ id: 0, score: 5 }), summaryReply([]), summaryReply([{ headline: "Second try", why: "Open it.", ids: [0] }]));
+  const brief = await run([item(0)], chat);
+  assert.equal(brief.summary, "Second try");
+});
+
 test("a story every source links the same way is one trend entry with all its sources", async () => {
   const story = (n: number, source: string) => ({ ...item(n, source, "https://example.com/story"), title: "Worm hits npm and CI systems" });
   const chat = scripted(scores({ id: 0, score: 5 }), summaryReply());
   const brief = await run([story(0, "A"), story(1, "B"), story(2, "C")], chat);
   assert.deepEqual(brief.trends[0].entries.map((entry) => entry.source), ["A, B, C"]);
+});
+
+test("the summary prompt includes the profile", async () => {
+  const chat = scripted(scores({ id: 0, score: 5 }), summaryReply());
+  await run([item(0)], chat);
+  assert.match(chat.prompts[1], /Interest profile/);
 });

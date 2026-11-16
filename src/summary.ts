@@ -22,11 +22,27 @@ export interface ScoredItem {
   score: number;
 }
 
+/** One link behind a summary point; title and link are copied from the data. */
+export interface PointLink {
+  title: string;
+  link: string;
+  source: string;
+}
+
+/** One point of the executive summary: a short name for the story, why to open it, and the picked items it is about. */
+export interface SummaryPoint {
+  headline: string;
+  why: string;
+  links: PointLink[];
+}
+
 export interface Brief {
   /** Local calendar date the brief is for, YYYY-MM-DD. */
   date: string;
-  /** The executive summary. */
+  /** The executive summary as plain text: the headlines of the points, or the whole summary for a brief stored before points existed. */
   summary: string;
+  /** What to read first, each point linked to the items it came from. Absent on a brief stored before points existed. */
+  summaryPoints?: SummaryPoint[];
   /** Items scored 4 or 5, grouped by topic in profile order, best first. */
   care: Array<{ topic: string; entries: BriefEntry[] }>;
   /** Items scored 3, and the best of those scored 4 or 5 that did not fit under the cap. */
@@ -66,6 +82,10 @@ const MAYBE_SCORE = 3;
 const DEFAULT_BATCH_SIZE = 40;
 const DEFAULT_MAX_CARE = 25;
 const DEFAULT_MAX_MAYBE = 10;
+
+/** The executive summary has at most this many points, each linking to at most MAX_POINT_LINKS items. */
+const MAX_SUMMARY_POINTS = 6;
+const MAX_POINT_LINKS = 3;
 
 /** Item summaries are cut to this many characters in the prompt. */
 const SUMMARY_PROMPT_CHARS = 240;
@@ -175,7 +195,7 @@ function validateScores(json: unknown, batchLength: number): Triage {
   return { scores, picks };
 }
 
-const SUMMARY_SYSTEM = "You write the executive summary of a person's daily reading brief. Reply with a single JSON object and nothing else.";
+const SUMMARY_SYSTEM = "You choose what a person should read first from their daily brief. Reply with a single JSON object and nothing else.";
 
 interface Picked extends Pick {
   group: Group;
@@ -187,26 +207,62 @@ function sourcesOf(group: Group): string[] {
   return [...new Set(group.members.map((member) => member.source))];
 }
 
-function summaryPrompt(picked: Picked[]): string {
+function summaryPrompt(profile: string, picked: Picked[]): string {
   const lines = picked.map(({ key, group, topic, score, reason }) => `[${key}] (score ${score}, ${topic}) ${sourcesOf(group).join(", ")}: ${group.item.title} -- ${reason}`);
   return [
+    "Here is the person's interest profile:",
+    "",
+    profile,
+    "",
     "These are the items picked for today's brief, with why each was picked.",
     "",
-    'Write "summary": an executive summary of what this person should know today, written to them as "you".',
-    "At most 4 sentences and 90 words. Start with the most important story and name it; no preamble such as \"you must be aware\".",
-    "Use only what the titles and reasons say; do not add facts and do not mention item numbers.",
-    'Reply: {"summary":"..."}',
+    `Choose the 3 to ${MAX_SUMMARY_POINTS} items (or small groups about one story) most worth opening first, most important first.`,
+    "Prefer things this person can try, adopt or act on today, and workflow lessons, over news they could skip.",
+    "For each one write:",
+    '- headline: at most 8 words naming the specific story, tool or finding. Not "AI agents are evolving".',
+    '- why: at most 20 words on what you get from opening it and what to look for, written to them as "you". Do not restate the headline.',
+    `- ids: the numbers in square brackets of the 1 to ${MAX_POINT_LINKS} items it is about. Never put an item number in the headline or why.`,
+    "Use only what the titles and reasons say; do not add facts.",
+    'Reply: {"points":[{"headline":"...","why":"...","ids":[0,3]}]}',
     "",
     "Items:",
     ...lines,
   ].join("\n");
 }
 
-function validateSummary(json: unknown): string {
-  if (!isRecord(json) || typeof json.summary !== "string" || json.summary.trim() === "") {
-    throw new Error("reply has no summary");
+interface WrittenSummary {
+  points: Array<{ headline: string; why: string; ids: number[] }>;
+}
+
+/** An item number as the model may write it: 7, "7" or "[7]". */
+function idOf(value: unknown): number | undefined {
+  const id = typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(/[^\d]/g, "")) : Number.NaN;
+  return Number.isInteger(id) && (typeof value === "number" || /\d/.test(String(value))) ? id : undefined;
+}
+
+/** Drop item-number markers like "[7]" the model sometimes writes into its text. */
+function withoutMarkers(text: string): string {
+  return text.replace(/\s*\[\d+(?:\s*,\s*\d+)*\]/g, "").trim();
+}
+
+/** Validate a summary reply. Points with no text or no valid item id are dropped: a point must say something and link somewhere. */
+function validateSummary(json: unknown, keys: Set<number>): WrittenSummary {
+  const points: WrittenSummary["points"] = [];
+  for (const raw of isRecord(json) && Array.isArray(json.points) ? json.points : []) {
+    if (!isRecord(raw) || typeof raw.headline !== "string" || typeof raw.why !== "string" || !Array.isArray(raw.ids)) {
+      continue;
+    }
+    const headline = withoutMarkers(raw.headline);
+    const why = withoutMarkers(raw.why);
+    const ids = [...new Set(raw.ids.map(idOf).filter((id): id is number => id !== undefined && keys.has(id)))].slice(0, MAX_POINT_LINKS);
+    if (headline !== "" && why !== "" && ids.length > 0 && points.length < MAX_SUMMARY_POINTS) {
+      points.push({ headline, why, ids });
+    }
   }
-  return json.summary.trim();
+  if (points.length === 0) {
+    throw new Error("reply has no usable points");
+  }
+  return { points };
 }
 
 function plural(count: number, word: string): string {
@@ -316,7 +372,18 @@ export async function generateBrief({
 
   const began = Date.now();
   try {
-    brief.summary = await askJson(chat, SUMMARY_SYSTEM, summaryPrompt(selected), validateSummary);
+    const keys = new Set(selected.map(({ key }) => key));
+    const byKey = new Map(selected.map((pick) => [pick.key, pick]));
+    const written = await askJson(chat, SUMMARY_SYSTEM, summaryPrompt(profile, selected), (json) => validateSummary(json, keys));
+    brief.summary = written.points.map((point) => point.headline).join("; ");
+    brief.summaryPoints = written.points.map(({ headline, why, ids }) => ({
+      headline,
+      why,
+      links: ids.map((id) => {
+        const { group } = byKey.get(id) as Picked;
+        return { title: group.item.title, link: group.item.link, source: sourcesOf(group).join(", ") };
+      }),
+    }));
     onProgress?.(`Wrote the summary in ${Math.round((Date.now() - began) / 1000)}s`);
   } catch (error) {
     console.error("Could not write the summary:", error);
