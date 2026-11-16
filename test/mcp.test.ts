@@ -50,6 +50,15 @@ test("get_brief returns the latest brief as Markdown with real links", async () 
   assert.match(text, /## Maybe of interest/);
 });
 
+test("get_brief leads with the linked points when the brief has them", async () => {
+  const briefs = tempBriefs();
+  const withPoints = { ...brief("2026-11-15"), summaryPoints: [{ headline: "The worm", why: "Patch it.", links: [{ title: "Worm", link: "https://example.com/worm", source: "Feed" }] }] };
+  briefs.save(withPoints, "2026-11-15T12:00:00.000Z", "qwen");
+  const text = await call(await connect(briefs), "get_brief");
+  assert.match(text, /## Read these first\n\n- \*\*\[The worm\]\(https:\/\/example.com\/worm\)\*\* \(Feed\): Patch it\./);
+  assert.doesNotMatch(text, /Summary for 2026-11-15/);
+});
+
 test("get_brief takes a date", async () => {
   const briefs = tempBriefs();
   briefs.save(brief("2026-11-14"), "2026-11-14T12:00:00.000Z", "qwen");

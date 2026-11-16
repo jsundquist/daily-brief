@@ -9,7 +9,7 @@ The user runs a local aggregator (the `daily-brief` project). A scheduled job wr
 
 ## Stored brief (default)
 
-1. Call the `get_brief` tool of the `daily-brief` MCP server. It returns the latest brief as Markdown: an executive summary, "Across your sources", "Worth your time" by topic, and "Maybe of interest".
+1. Call the `get_brief` tool of the `daily-brief` MCP server. It returns the latest brief as Markdown: a "Read these first" list of linked points, "Across your sources", "Worth your time" by topic, and "Maybe of interest".
 2. Present it as it is: the summary first, then the sections. Do not re-pick, re-rank or add items; every link comes from the tool result.
 3. If the brief's date is not today, say so up front, and say the 09:00 job did not run (`npm run brief` in the daily-brief project makes one now). Offer the live brief below.
 4. If the tool says no brief exists, or the MCP server is not available, use the live brief below.
