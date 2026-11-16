@@ -10,6 +10,9 @@ import { Store } from "./store.ts";
 const customServer = process.env.BRIEF_BASE_URL !== undefined;
 const baseUrl = process.env.BRIEF_BASE_URL ?? "http://localhost:11434/v1";
 const model = process.env.BRIEF_MODEL ?? "gemma4:latest";
+// The first model triages every item; this slower one re-scores the picks and writes the summary. BRIEF_FINAL_MODEL=none runs the first model alone.
+const finalModelSetting = process.env.BRIEF_FINAL_MODEL ?? "qwen3.8:27b";
+const finalModel = finalModelSetting === "none" ? undefined : finalModelSetting;
 const dataFile = process.env.DATA_FILE ?? "data/store.json";
 const briefsFile = process.env.BRIEFS_DB ?? "data/briefs.db";
 const profile = readFileSync(process.env.BRIEF_PROFILE ?? "skills/daily-brief/profile.md", "utf8");
@@ -31,7 +34,8 @@ try {
     store: new Store(dataFile),
     briefs,
     chat: openAiChat({ baseUrl, model }),
-    model,
+    finalChat: finalModel === undefined ? undefined : openAiChat({ baseUrl, model: finalModel }),
+    model: finalModel === undefined ? model : `${model} + ${finalModel}`,
     profile,
     now: () => new Date(),
     onProgress: (message) => console.log(`[${new Date().toLocaleTimeString()}] ${message}`),

@@ -270,3 +270,38 @@ test("the summary prompt includes the profile", async () => {
   await run([item(0)], chat);
   assert.match(chat.prompts[1], /Interest profile/);
 });
+
+const rerankReply = (...items: Array<{ id: unknown; score: number }>) => JSON.stringify({ items });
+
+test("a final model re-scores the picks and writes the summary, while the first model only triages", async () => {
+  const chat = scripted(scores({ id: 0, score: 5 }, { id: 1, score: 4 }, { id: 2, score: 4 }));
+  const finalChat = scripted(rerankReply({ id: 0, score: 2 }, { id: 1, score: 5 }, { id: 2, score: 3 }), summaryReply([{ headline: "Keeper", why: "Open it.", ids: [1] }]));
+  const brief = await run([item(0), item(1), item(2)], chat, { finalChat });
+  assert.equal(chat.calls, 1);
+  assert.equal(finalChat.calls, 2);
+  assert.deepEqual(brief.care.flatMap((group) => group.entries.map((entry) => entry.source)), ["Source 1"]);
+  assert.deepEqual(brief.maybe.map((entry) => entry.source), ["Source 2"]);
+  assert.equal(brief.summary, "Keeper");
+});
+
+test("re-scored scores are what gets recorded for each item", async () => {
+  const chat = scripted(scores({ id: 0, score: 5 }, { id: 1, score: 1, topic: undefined, reason: undefined }));
+  const finalChat = scripted(rerankReply({ id: 0, score: 3 }), summaryReply());
+  const brief = await run([item(0), item(1)], chat, { finalChat });
+  assert.deepEqual(brief.scored?.map(({ source, score }) => `${source}:${score}`), ["Source 0:3", "Source 1:1"]);
+});
+
+test("if the final model cannot re-score, the first pass stands", async () => {
+  const chat = scripted(scores({ id: 0, score: 5 }));
+  const finalChat = scripted("nope", "still nope", summaryReply());
+  const brief = await run([item(0)], chat, { finalChat });
+  assert.equal(brief.care[0].entries.length, 1);
+  assert.equal(brief.summary, "Big story");
+});
+
+test("a pick the final model leaves out of its reply keeps its first-pass score", async () => {
+  const chat = scripted(scores({ id: 0, score: 5 }, { id: 1, score: 4 }));
+  const finalChat = scripted(rerankReply({ id: 0, score: 4 }, { id: 99, score: 1 }), summaryReply());
+  const brief = await run([item(0), item(1)], chat, { finalChat });
+  assert.equal(brief.care[0].entries.length, 2);
+});

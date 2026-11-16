@@ -62,6 +62,8 @@ export interface GenerateOptions {
   items: BriefItem[];
   profile: string;
   chat: Chat;
+  /** A stronger, slower model. When given, it re-scores the picks and writes the summary; `chat` only triages. */
+  finalChat?: Chat;
   date: string;
   batchSize?: number;
   /** At most this many items under "worth your time". */
@@ -82,6 +84,9 @@ const MAYBE_SCORE = 3;
 const DEFAULT_BATCH_SIZE = 40;
 const DEFAULT_MAX_CARE = 25;
 const DEFAULT_MAX_MAYBE = 10;
+
+/** At most this many picks go to the final model to re-score, best first. */
+const MAX_RERANK = 90;
 
 /** The executive summary has at most this many points, each linking to at most MAX_POINT_LINKS items. */
 const MAX_SUMMARY_POINTS = 6;
@@ -234,6 +239,42 @@ interface WrittenSummary {
   points: Array<{ headline: string; why: string; ids: number[] }>;
 }
 
+const RERANK_SYSTEM = "You make the final call on which items from a reading list are worth one person's time. Reply with a single JSON object and nothing else.";
+
+function rerankPrompt(profile: string, candidates: Picked[]): string {
+  const lines = candidates.map(({ key, group, topic, reason }) => `[${key}] (${topic}) ${sourcesOf(group).join(", ")}: ${group.item.title} -- ${reason}`);
+  return [
+    "Here is the person's interest profile:",
+    "",
+    profile,
+    "",
+    "A first pass picked the items below. It was too generous. Score each one again, strictly, for this person:",
+    "5 = a must-read today; at most 3 items in this list.",
+    "4 = clearly matches what they care about and is worth opening today; at most 20 items score 4 or 5 in total.",
+    "3 = borderline. 2 or 1 = not for them: matches a skip rule, a niche they do not work in, or marketing.",
+    "Judge only from the title and reason given.",
+    'id is the number in square brackets. Reply: {"items":[{"id":0,"score":4}]}',
+    "",
+    "Items:",
+    ...lines,
+  ].join("\n");
+}
+
+/** Validate a re-score reply into id -> score. Anything malformed is dropped. */
+function validateRerank(json: unknown, keys: Set<number>): Map<number, number> {
+  const scores = new Map<number, number>();
+  for (const raw of isRecord(json) && Array.isArray(json.items) ? json.items : []) {
+    const id = isRecord(raw) ? idOf(raw.id) : undefined;
+    if (id !== undefined && keys.has(id) && isRecord(raw) && typeof raw.score === "number" && Number.isInteger(raw.score) && raw.score >= 1 && raw.score <= 5) {
+      scores.set(id, raw.score);
+    }
+  }
+  if (scores.size === 0) {
+    throw new Error("reply has no usable scores");
+  }
+  return scores;
+}
+
 /** An item number as the model may write it: 7, "7" or "[7]". */
 function idOf(value: unknown): number | undefined {
   const id = typeof value === "number" ? value : typeof value === "string" ? Number(value.replace(/[^\d]/g, "")) : Number.NaN;
@@ -315,6 +356,7 @@ export async function generateBrief({
   items,
   profile,
   chat,
+  finalChat,
   date,
   batchSize = DEFAULT_BATCH_SIZE,
   maxCare = DEFAULT_MAX_CARE,
@@ -359,7 +401,32 @@ export async function generateBrief({
   }
   brief.scored = scored;
 
-  const ranked = [...all].sort(bestFirst);
+  if (finalChat !== undefined && all.length > 0) {
+    const began = Date.now();
+    try {
+      const candidates = [...all].sort(bestFirst).slice(0, MAX_RERANK);
+      const rescored = await askJson(finalChat, RERANK_SYSTEM, rerankPrompt(profile, candidates), (json) => validateRerank(json, new Set(candidates.map(({ key }) => key))));
+      const moved = new Map<string, number>();
+      for (const pick of candidates) {
+        const score = rescored.get(pick.key);
+        if (score !== undefined) {
+          pick.score = score;
+          for (const member of pick.group.members) {
+            moved.set(member.link, score);
+          }
+        }
+      }
+      for (const item of scored) {
+        item.score = moved.get(item.link) ?? item.score;
+      }
+      const kept = candidates.filter(({ score }) => score >= CARE_SCORE).length;
+      onProgress?.(`Re-scored ${candidates.length} picks in ${Math.round((Date.now() - began) / 1000)}s: ${kept} now score 4-5`);
+    } catch (error) {
+      console.error("Could not re-score the picks; keeping the first pass:", error);
+    }
+  }
+
+  const ranked = all.filter(({ score }) => score >= MAYBE_SCORE).sort(bestFirst);
   const strong = ranked.filter(({ score }) => score >= CARE_SCORE);
   const care = strong.slice(0, maxCare);
   const maybe = [...strong.slice(maxCare), ...ranked.filter(({ score }) => score === MAYBE_SCORE)].slice(0, maxMaybe);
@@ -374,7 +441,7 @@ export async function generateBrief({
   try {
     const keys = new Set(selected.map(({ key }) => key));
     const byKey = new Map(selected.map((pick) => [pick.key, pick]));
-    const written = await askJson(chat, SUMMARY_SYSTEM, summaryPrompt(profile, selected), (json) => validateSummary(json, keys));
+    const written = await askJson(finalChat ?? chat, SUMMARY_SYSTEM, summaryPrompt(profile, selected), (json) => validateSummary(json, keys));
     brief.summary = written.points.map((point) => point.headline).join("; ");
     brief.summaryPoints = written.points.map(({ headline, why, ids }) => ({
       headline,
