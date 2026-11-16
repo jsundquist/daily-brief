@@ -231,6 +231,20 @@ function entryOf({ group, reason, score }: Picked): BriefEntry {
   };
 }
 
+/** One entry per distinct link, so a story every source links to the same way is listed once with all its sources. */
+function trendEntries({ group, reason, score }: Picked): BriefEntry[] {
+  const byLink = new Map<string, BriefEntry>();
+  for (const member of group.members) {
+    const seen = byLink.get(member.link);
+    if (seen === undefined) {
+      byLink.set(member.link, { title: member.title, link: member.link, source: member.source, reason, score });
+    } else if (!seen.source.split(", ").includes(member.source)) {
+      seen.source += `, ${member.source}`;
+    }
+  }
+  return [...byLink.values()];
+}
+
 /** Best score first; among equals the item order (newest first) is kept. */
 function bestFirst(a: Picked, b: Picked): number {
   return b.score - a.score || a.key - b.key;
@@ -313,7 +327,7 @@ export async function generateBrief({
   for (const pick of selected.filter(isTrend)) {
     brief.trends.push({
       story: storyName(pick.group.item.title),
-      entries: pick.group.members.map((member) => ({ title: member.title, link: member.link, source: member.source, reason: pick.reason, score: pick.score })),
+      entries: trendEntries(pick),
     });
   }
 
