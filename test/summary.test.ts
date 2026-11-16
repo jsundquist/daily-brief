@@ -218,3 +218,10 @@ test("when nothing scores 3 or more there is nothing to summarise", async () => 
   assert.deepEqual(brief.care, []);
   assert.match(brief.summary, /Nothing stood out/);
 });
+
+test("a story every source links the same way is one trend entry with all its sources", async () => {
+  const story = (n: number, source: string) => ({ ...item(n, source, "https://example.com/story"), title: "Worm hits npm and CI systems" });
+  const chat = scripted(scores({ id: 0, score: 5 }), summaryReply());
+  const brief = await run([story(0, "A"), story(1, "B"), story(2, "C")], chat);
+  assert.deepEqual(brief.trends[0].entries.map((entry) => entry.source), ["A, B, C"]);
+});
