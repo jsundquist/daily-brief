@@ -11,6 +11,8 @@ export interface BriefJobOptions {
   store: Store;
   briefs: BriefStore;
   chat: Chat;
+  /** A stronger model that re-scores the picks and writes the summary; see `generateBrief`. */
+  finalChat?: Chat;
   /** Recorded with the brief, so it is clear what wrote it. */
   model: string;
   profile: string;
@@ -42,7 +44,7 @@ export async function runBriefJob(options: BriefJobOptions): Promise<Brief> {
   );
 
   options.onProgress?.(`Feeds refreshed; briefing ${items.length} items`);
-  const brief = await generateBrief({ items, profile, chat, date, batchSize: options.batchSize, onProgress: options.onProgress });
+  const brief = await generateBrief({ items, profile, chat, finalChat: options.finalChat, date, batchSize: options.batchSize, onProgress: options.onProgress });
   briefs.save(brief, at.toISOString(), model);
   return brief;
 }
